@@ -6,8 +6,9 @@
 """
 import magicbot
 import wpilib
-from ctre import WPI_TalonSRX
+from ctre import WPI_TalonFX
 from components.drivetrain import FROGDrive
+from components.driverstation import FROGStick
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -22,13 +23,13 @@ class FROGbot(magicbot.MagicRobot):
     def createObjects(self):
         """Create motors and inputs"""
         # chassis components
-        self.leftMaster = WPI_TalonSRX(1)
-        self.rightMaster = WPI_TalonSRX(2)
-        self.leftSlave = WPI_TalonSRX(3)
-        self.rightSlave = WPI_TalonSRX(4)
+        self.leftMaster = WPI_TalonFX(11)
+        self.rightMaster = WPI_TalonFX(12)
+        self.leftSlave = WPI_TalonFX(13)
+        self.rightSlave = WPI_TalonFX(14)
 
         # controls
-        self.joystick = wpilib.Joystick(0)
+        self.joystick = FROGStick(0)
         self.xbox = wpilib.XboxController(1)
 
     def teleopInit(self):
@@ -38,7 +39,10 @@ class FROGbot(magicbot.MagicRobot):
         """Called on each iteration of the control loop"""
 
         # feed joystick to the drivetrain
-        pass
+        self.chassis.setVelocity(
+            self.joystick.getSpeed(),
+            self.joystick.getRotation()
+        )
 
 
 if __name__ == "__main__":
