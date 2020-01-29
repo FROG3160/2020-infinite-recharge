@@ -1,12 +1,8 @@
 from magicbot import tunable
-from ctre import WPI_TalonFX
-from ctre import ControlMode
-from ctre import NeutralMode
-from ctre import FeedbackDevice
+from ctre import WPI_TalonFX, ControlMode, NeutralMode, FeedbackDevice, PigeonIMU
 from wpilib.drive import DifferentialDrive
 import math
 from networktables import NetworkTables
-from ctre import PigeonIMU
 from .common import PID
 
 # from subsystems.vision import FROGVision
@@ -29,13 +25,14 @@ class FROGGyro(PigeonIMU):
 
 class FROGDrive(DifferentialDrive):
 
-    # drivetrain characteristics.  Values halved from last year since
-    # we are using Falcon 500 with half the encoder resolution
-    ENCODER_TICKS_PER_REV = 2048  # halved from last year
-    MAX_VELOCITY = 1500  # halved from last year
+    # drivetrain characteristics.  Values are changed from last year.
+    # The encoders are now on the motor shaft instead of the drive shaft
+    # and the encoder has half the resolution of the ones from last year.
+    ENCODER_TICKS_PER_REV = 20480  # 
+    MAX_VELOCITY = 15000  # halved from last year
     WHEEL_DIAMETER = 6
     TICKS_PER_INCH = ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
-    TICKS_PER_ANGLE = 4000 / 180  # in degrees - halved from last year
+    TICKS_PER_ANGLE = 40000 / 180  # in degrees - halved from last year
 
     # PIDs for drivetrain
     VelocityPID = PID(slot=0, f=0.313)
@@ -50,8 +47,8 @@ class FROGDrive(DifferentialDrive):
     POSITION_MODE = ControlMode.MotionMagic
 
     # Motion Magic settings
-    MM_ACCELERATION = 500
-    MM_CRUISE_VELOCITY = 1000
+    MM_ACCELERATION = 5000
+    MM_CRUISE_VELOCITY = 10000
 
     # TODO: change to tunables?  I think thesea are only needed
     # to hold values to place on network tables
