@@ -28,11 +28,11 @@ class FROGDrive(DifferentialDrive):
     # drivetrain characteristics.  Values are changed from last year.
     # The encoders are now on the motor shaft instead of the drive shaft
     # and the encoder has half the resolution of the ones from last year.
-    ENCODER_TICKS_PER_REV = 20480  # 
-    MAX_VELOCITY = 15000  # halved from last year
+    ENCODER_TICKS_PER_REV = 2048*10.71  # motor ticks * gear reduction
+    MAX_VELOCITY = 18000  # Falcons are maxing at 20k - 21k
     WHEEL_DIAMETER = 6
     TICKS_PER_INCH = ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
-    TICKS_PER_ANGLE = 40000 / 180  # in degrees - halved from last year
+    TICKS_PER_ANGLE = (8000 * 10.71) / 180
 
     # PIDs for drivetrain
     VelocityPID = PID(slot=0, f=0.313)
@@ -149,7 +149,7 @@ class FROGDrive(DifferentialDrive):
 
         # TODO: might want to move these to a chassis component that
         # has the drivetrain, gyro, and vision as objects.
-        self.gyro = FROGGyro(self.leftSlave)
+        # self.gyro = FROGGyro(self.leftSlave)
         # self.vision = FROGVision()
 
     def setPID(self, pid):
@@ -162,6 +162,8 @@ class FROGDrive(DifferentialDrive):
     def setVelocity(self, speed, rotation):
         speed = math.copysign(speed * speed, speed)
         rotation = math.copysign(rotation * rotation, rotation)
+        self.control_speed = speed
+        self.control_rotation = rotation
 
         maxInput = math.copysign(max(abs(speed), abs(rotation)), speed)
         if speed >= 0.0:
@@ -226,29 +228,25 @@ class FROGDrive(DifferentialDrive):
         """update network tables with drive telemetry"""
 
         self.drive_encoders.putNumber(
-            "left_pos", self.leftMaster.getSelectedSensorPosition(0)
+            "left_pos", self.leftMaster.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
         )
         self.drive_encoders.putNumber(
-            "right_pos", self.rightMaster.getSelectedSensorPosition(0)
+            "right_pos", self.rightMaster.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
         )
         self.drive_encoders.putNumber(
-            "left_vel", self.leftMaster.getSelectedSensorVelocity(0)
+            "left_vel", self.leftMaster.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
         )
         self.drive_encoders.putNumber(
-            "right_vel", self.rightMaster.getSelectedSensorVelocity(0)
+            "right_vel", self.rightMaster.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
         )
-        if self.command_speed:
-            self.drive_command.putNumber("commanded speed", self.command_speed)
-        if self.command_rotation:
-            self.drive_command.putNumber("commanded rotation", self.command_rotation)
-        if self.command_rightvel:
-            self.drive_command.putNumber("commanded rvel", self.command_rightvel)
-        if self.command_leftvel:
-            self.drive_command.putNumber("commanded lvel", self.command_leftvel)
-        if self.leftPosition:
-            self.drive_command.putNumber("commanded lpos", self.leftPosition)
-        if self.rightPosition:
-            self.drive_command.putNumber("commanded rpos", self.rightPosition)
+        if self.control_speed:
+            self.drive_command.putNumber("commanded speed", self.control_speed)
+        if self.control_rotation:
+            self.drive_command.putNumber("commanded rotation", self.control_rotation)
+        if self.left_control:
+            self.drive_command.putNumber("left control", self.left_control)
+        if self.right_control:
+            self.drive_command.putNumber("right control", self.right_control)
 
     def execute(self):
         # set motor values
@@ -256,3 +254,4 @@ class FROGDrive(DifferentialDrive):
         if self.control_mode and self.left_control and self.right_control:
             self.leftMaster.set(self.control_mode, self.left_control)
             self.rightMaster.set(self.control_mode, self.right_control)
+        self.updateNT()
