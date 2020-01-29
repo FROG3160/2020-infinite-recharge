@@ -7,7 +7,7 @@ def changeRange(OldMin, OldMax, NewMin, NewMax, Value):
 
 class FROGStick(wpilib.Joystick):
 
-    DEADBAND = 0.1
+    DEADBAND = 0.15
     SPEED_DIVISOR = 1
     ROTATION_DIVISOR = 1.6
     ROTATION_MIN = 0
