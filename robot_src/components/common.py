@@ -12,5 +12,20 @@ class PID:
         self.i = i
         self.d = d
         self.f = f
+        
+def remap(val, OldMin, OldMax, NewMin, NewMax):
+    '''take a value in the old range and return a value in the new range'''
+    return (((val - OldMin) * (NewMax - NewMin)) / (OldMax - OldMin)) + NewMin
 
+def limit(val, min_val, max_val):
+    '''keep a value within a certain range'''
+    return max(min(max_val, val), min_val)
+
+if __name__ == '__main__':
+    print(remap(0, 1, 0, 9000, .5) == 4500)
+    print(remap(0, 1, 0, 9000, -.3 ))
+    print(limit(2, -1, 1))
+    print(limit(-123, 0, 900))
+    print(limit(45, 0, 100))
+    print(limit(-32, -100, 0))
 
