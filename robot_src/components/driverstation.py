@@ -1,8 +1,5 @@
 import wpilib
-
-
-def changeRange(OldMin, OldMax, NewMin, NewMax, Value):
-    return (((Value - OldMin) * (NewMax - NewMin)) / (OldMax - OldMin)) + NewMin
+from .common import remap
 
 
 class FROGStick(wpilib.Joystick):
@@ -35,15 +32,20 @@ class FROGStick(wpilib.Joystick):
         )
 
     def getRangedCubedRotation(self):
-        return changeRange(
+        return remap(
+            self.getTwist() ** 3,
             self.SPEED_DIVISOR,
             1,
             self.ROTATION_MIN,
             self.ROTATION_MAX,
-            self.getTwist() ** 3,
+
         )
 
     def getRangeRotation(self):
-        return changeRange(
-            self.SPEED_DIVISOR, 1, self.ROTATION_MIN, self.ROTATION_MAX, self.getTwist()
+        return remap(
+             self.getTwist(),
+             self.SPEED_DIVISOR,
+             1,
+             self.ROTATION_MIN,
+             self.ROTATION_MAX,
         )
