@@ -3,7 +3,8 @@ from ctre import WPI_TalonFX, ControlMode, NeutralMode, FeedbackDevice, PigeonIM
 from wpilib.drive import DifferentialDrive
 import math
 from networktables import NetworkTables
-from .common import PID, remap, limit
+from .common import PID, limit
+from wpilib import LiveWindow
 
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
@@ -11,17 +12,17 @@ from .common import PID, remap, limit
 # drivetrain characteristics.  Values are changed from last year.
 # The encoders are now on the motor shaft instead of the drive shaft
 # and the encoder has half the resolution of the ones from last year.
-ENCODER_TICKS_PER_REV = 2048*10.71  # motor ticks * gear reduction
-MAX_VELOCITY = 18000  # Falcons are maxing at 20k - 21k
-MAX_ACCEL = 9000/50 # change of 9000 / 50
+ENCODER_TICKS_PER_REV = 2048 * 10.71  # motor ticks * gear reduction
+MAX_VELOCITY = 12000  # Falcons are maxing at 20k - 21k
+MAX_ACCEL = MAX_VELOCITY / 50  # sampled 50 times a second makes this MAX ACCEL/sec
 MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
-TICKS_PER_INCH = ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
-TICKS_PER_ANGLE = (8000 * 10.71) / 180
+TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
+TICKS_PER_ANGLE = 40000 / 180
 
 # PIDs for drivetrain
-VelocityPID = PID(slot=0, f=0.313)
-PositionPID = PID(slot=0, f=0.320, p=0.55)
+VelocityPID = PID(slot=0, f=0.0482)
+PositionPID = PID(slot=0, f=0.003, p=0.0)
 RotatePID = PID(slot=0, f=0.320, p=0.76)
 TurnPID = PID(p=0.035, d=0.10, i=0.001)
 PIDOutputLimit = 0.66
@@ -33,8 +34,9 @@ VELOCITY_MODE = ControlMode.Velocity
 POSITION_MODE = ControlMode.MotionMagic
 
 # Motion Magic settings
-MM_ACCELERATION = 5000
-MM_CRUISE_VELOCITY = 10000
+MM_ACCELERATION = 4000
+MM_CRUISE_VELOCITY = 8000
+
 
 class FROGGyro(PigeonIMU):
 
@@ -88,8 +90,13 @@ class FROGDrive(DifferentialDrive):
 
     def init_velocity_drive(self):
         self.setPID(VelocityPID)
-        self.reset_control_values()
+        self.left_control = 0
+        self.right_control = 0
         self.drivemode = VELOCITY_MODE
+
+    def init_SDPID(self):
+        # initializes attributes for tuning PID with SmartDashboard
+        pass
 
     def reset_control_values(self):
         self.left_control = None
@@ -152,11 +159,21 @@ class FROGDrive(DifferentialDrive):
             motor_control.config_kF(pid.slot, pid.f, 0)
 
     def setVelocity(self, speed, rotation):
+        '''take speed and rotation values from joystick which
+        are always in the -1 to 1 range.'''
+
+        # square the input and keep the sign of the original value
         speed = math.copysign(speed * speed, speed)
         rotation = math.copysign(rotation * rotation, rotation)
+
+        # TODO: decide if it's redundant to keep these values in
+        # attributes.  This is done to place the value on network
+        # tables for testing purposes with the updateNT() method.
         self.control_speed = speed
         self.control_rotation = rotation
 
+        # determine the left and right wheel speed from the given
+        # speed and rotation controls
         maxInput = math.copysign(max(abs(speed), abs(rotation)), speed)
         if speed >= 0.0:
 
@@ -174,21 +191,22 @@ class FROGDrive(DifferentialDrive):
                 leftMotorSpeed = maxInput
                 rightMotorSpeed = speed - rotation
 
-        # TODO: the below function would limit the commanded speed to the -1
-        # to 1 range we need to determine if this is even necessary, but the
-        # old function has been deprecated, so we will need to refactor if
-        # needed.
-        # leftMotorSpeed = wpilib.RobotDrive.limit(leftMotorSpeed)
-        # rightMotorSpeed = wpilib.RobotDrive.limit(rightMotorSpeed)
+        # adjust the motor velocity by the requested speed,
+        # limited by the max velocity allowed.
+        self.left_control = self.left_control + limit(
+            (leftMotorSpeed * MAX_VELOCITY - self.left_control),
+            -MAX_ACCEL,
+            MAX_ACCEL)
+        self.right_control = self.right_control + limit(
+            (rightMotorSpeed * MAX_VELOCITY - self.right_control),
+            -MAX_ACCEL,
+            MAX_ACCEL)
 
-        self.left_control = leftMotorSpeed * MAX_VELOCITY
-        self.right_control = rightMotorSpeed * MAX_VELOCITY
-        
         self.control_mode = VELOCITY_MODE
-        
+
     def setPosition(self, distance):
 
-        if distance:
+        if distance and not self.left_control and not self.right_control:
             self.left_control = (
                 distance * TICKS_PER_INCH
             ) + self.leftMaster.getSelectedSensorPosition(0)

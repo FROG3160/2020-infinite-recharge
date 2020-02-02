@@ -44,6 +44,19 @@ class FROGbot(magicbot.MagicRobot):
             self.joystick.getRotation()
         )
 
+        if self.joystick.getPoV() == 0:
+            self.chassis.setPosition(36)
+        if self.joystick.getPoV() == 180:
+            self.chassis.setPosition(-36)
+
+    def testInit(self):
+
+        pass
+
+    def testPeriodic(self):
+
+        pass
+
 
 if __name__ == "__main__":
     wpilib.run(FROGbot)
