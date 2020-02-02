@@ -6,7 +6,7 @@
 """
 import magicbot
 import wpilib
-from ctre import WPI_TalonFX
+from ctre import WPI_TalonFX, WPI_TalonSRX
 from components.drivetrain import FROGDrive
 from components.driverstation import FROGStick
 
@@ -27,6 +27,16 @@ class FROGbot(magicbot.MagicRobot):
         self.rightMaster = WPI_TalonFX(12)
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
+
+        self.intake = WPI_TalonSRX(21)
+        self.lowerConveyor = WPI_TalonFX(22)
+        self.upperConveyor = WPI_TalonFX(23)
+
+        self.turret = WPI_TalonFX(31)
+        self.hood = WPI_TalonSRX(32)
+        self.shooter = WPI_TalonFX(33)
+
+        self.controllerWheel = WPI_TalonSRX(41)
 
         # controls
         self.joystick = FROGStick(0)
