@@ -85,16 +85,16 @@ class FROGDrive(DifferentialDrive):
         self.drive_command = NetworkTables.getTable("drive_commands")
         self.vision_table = NetworkTables.getTable("Vision")
 
-    def init_position_drive(self):
+    def init_position_mode(self):
         self.setPID(PositionPID)
         self.reset_control_values()
-        self.drivemode = POSITION_MODE
+        self.control_mode = POSITION_MODE
 
-    def init_velocity_drive(self):
+    def init_velocity_mode(self):
         self.setPID(VelocityPID)
         self.left_control = 0
         self.right_control = 0
-        self.drivemode = VELOCITY_MODE
+        self.control_mode = VELOCITY_MODE
 
     def init_SDPID(self):
         # initializes attributes for tuning PID with SmartDashboard
@@ -141,7 +141,7 @@ class FROGDrive(DifferentialDrive):
 
         self.config_motion_magic()
 
-        self.init_velocity_drive()
+        self.init_velocity_mode()
         self.init_nt()
 
         # init DifferentialDrive with left and right controllers
@@ -204,8 +204,6 @@ class FROGDrive(DifferentialDrive):
             -MAX_ACCEL,
             MAX_ACCEL)
 
-        self.control_mode = VELOCITY_MODE
-
     def setPosition(self, distance):
 
         if distance and not self.left_control and not self.right_control:
@@ -215,8 +213,6 @@ class FROGDrive(DifferentialDrive):
             self.right_control = (
                 distance * TICKS_PER_INCH
             ) + self.rightMaster.getSelectedSensorPosition(0)
-        self.control_mode = POSITION_MODE
-        self.setPID(PositionPID)
 
     def setRotate(self, angle):
         if angle:
@@ -236,6 +232,12 @@ class FROGDrive(DifferentialDrive):
             # self.positionDrive()
         else:
             self.vision_table.putNumber("Vision_angle", -999)
+
+    def toggleControlMode(self):
+        if self.control_mode == POSITION_MODE:
+            self.init_velocity_mode()
+        elif self.control_mode == VELOCITY_MODE:
+            self.init_position_mode()
 
     def updateNT(self):
         """update network tables with drive telemetry"""

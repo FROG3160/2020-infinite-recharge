@@ -48,16 +48,19 @@ class FROGbot(magicbot.MagicRobot):
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
 
-        # feed joystick to the drivetrain
-        self.chassis.setVelocity(
-            self.joystick.getSpeed(),
-            self.joystick.getRotation()
-        )
+        if self.joystick.getButton(11) == 1:
+            self.chassis.toggleControlMode()
 
         if self.joystick.getPoV() == 0:
-            self.chassis.setPosition(36)
-        if self.joystick.getPoV() == 180:
-            self.chassis.setPosition(-36)
+            self.chassis.setPosition(36)  # tell it to roll forward 36 inches
+        elif self.joystick.getPoV() == 180:
+            self.chassis.setPosition(-36)  # tell it to roll backward 36 inches
+        else:
+            # feed joystick to the drivetrain
+            self.chassis.setVelocity(
+                self.joystick.getSpeed(),
+                self.joystick.getRotation()
+            )
 
     def testInit(self):
 
