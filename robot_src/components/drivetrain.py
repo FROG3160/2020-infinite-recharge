@@ -4,7 +4,6 @@ from wpilib.drive import DifferentialDrive
 import math
 from networktables import NetworkTables
 from .common import PID, limit
-from wpilib import LiveWindow
 
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
@@ -64,6 +63,9 @@ class FROGDrive(DifferentialDrive):
         # init can't be used for setting up magic components because
         # they won't be available until after the contstructor has
         # finished.  Use the setup method instead.
+        # This needs to be in place to prevent the __init__ of
+        # DifferentialDrive from running until we have all components
+        # available.
         pass
 
     def config_encoders(self):
@@ -143,7 +145,7 @@ class FROGDrive(DifferentialDrive):
         self.init_nt()
 
         # init DifferentialDrive with left and right controllers
-        super().__init__(self.leftMaster, self.rightMaster)
+        DifferentialDrive.__init__(self.leftMaster, self.rightMaster)
         self.setSafetyEnabled(False)
 
         # TODO: might want to move these to a chassis component that
