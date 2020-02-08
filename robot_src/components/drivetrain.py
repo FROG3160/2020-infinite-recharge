@@ -164,49 +164,51 @@ class FROGDrive(DifferentialDrive):
         '''take speed and rotation values from joystick which
         are always in the -1 to 1 range.'''
 
-        # square the input and keep the sign of the original value
-        speed = math.copysign(speed * speed, speed)
-        rotation = math.copysign(rotation * rotation, rotation)
+        # only set left and right control values if we are in VELOCITY_MODE
+        if self.control_mode == VELOCITY_MODE:
+            # square the input and keep the sign of the original value
+            speed = math.copysign(speed * speed, speed)
+            rotation = math.copysign(rotation * rotation, rotation)
 
-        # TODO: decide if it's redundant to keep these values in
-        # attributes.  This is done to place the value on network
-        # tables for testing purposes with the updateNT() method.
-        self.control_speed = speed
-        self.control_rotation = rotation
+            # TODO: decide if it's redundant to keep these values in
+            # attributes.  This is done to place the value on network
+            # tables for testing purposes with the updateNT() method.
+            self.control_speed = speed
+            self.control_rotation = rotation
 
-        # determine the left and right wheel speed from the given
-        # speed and rotation controls
-        maxInput = math.copysign(max(abs(speed), abs(rotation)), speed)
-        if speed >= 0.0:
+            # determine the left and right wheel speed from the given
+            # speed and rotation controls
+            maxInput = math.copysign(max(abs(speed), abs(rotation)), speed)
+            if speed >= 0.0:
 
-            if rotation >= 0.0:
-                leftMotorSpeed = maxInput
-                rightMotorSpeed = speed - rotation
+                if rotation >= 0.0:
+                    leftMotorSpeed = maxInput
+                    rightMotorSpeed = speed - rotation
+                else:
+                    leftMotorSpeed = speed + rotation
+                    rightMotorSpeed = maxInput
             else:
-                leftMotorSpeed = speed + rotation
-                rightMotorSpeed = maxInput
-        else:
-            if rotation >= 0.0:
-                leftMotorSpeed = speed + rotation
-                rightMotorSpeed = maxInput
-            else:
-                leftMotorSpeed = maxInput
-                rightMotorSpeed = speed - rotation
+                if rotation >= 0.0:
+                    leftMotorSpeed = speed + rotation
+                    rightMotorSpeed = maxInput
+                else:
+                    leftMotorSpeed = maxInput
+                    rightMotorSpeed = speed - rotation
 
-        # adjust the motor velocity by the requested speed,
-        # limited by the max velocity allowed.
-        self.left_control = self.left_control + limit(
-            (leftMotorSpeed * MAX_VELOCITY - self.left_control),
-            -MAX_ACCEL,
-            MAX_ACCEL)
-        self.right_control = self.right_control + limit(
-            (rightMotorSpeed * MAX_VELOCITY - self.right_control),
-            -MAX_ACCEL,
-            MAX_ACCEL)
+            # adjust the motor velocity by the requested speed,
+            # limited by the max velocity allowed.
+            self.left_control = self.left_control + limit(
+                (leftMotorSpeed * MAX_VELOCITY - self.left_control),
+                -MAX_ACCEL,
+                MAX_ACCEL)
+            self.right_control = self.right_control + limit(
+                (rightMotorSpeed * MAX_VELOCITY - self.right_control),
+                -MAX_ACCEL,
+                MAX_ACCEL)
 
     def setPosition(self, distance):
-
-        if distance and not self.left_control and not self.right_control:
+        # We only want to set the position if it's in POSITION_MODE
+        if self.control_mode == POSITION_MODE and distance:
             self.left_control = (
                 distance * TICKS_PER_INCH
             ) + self.leftMaster.getSelectedSensorPosition(0)
