@@ -53,14 +53,13 @@ class FROGbot(magicbot.MagicRobot):
 
         if self.joystick.getPoV() == 0:
             self.chassis.setPosition(36)  # tell it to roll forward 36 inches
-        elif self.joystick.getPoV() == 180:
+        if self.joystick.getPoV() == 180:
             self.chassis.setPosition(-36)  # tell it to roll backward 36 inches
-        else:
-            # feed joystick to the drivetrain
-            self.chassis.setVelocity(
-                self.joystick.getSpeed(),
-                self.joystick.getRotation()
-            )
+        # feed joystick to the drivetrain
+        self.chassis.setVelocity(
+            self.joystick.getSpeed(),
+            self.joystick.getRotation()
+        )
 
     def testInit(self):
 
