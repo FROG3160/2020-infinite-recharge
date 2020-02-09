@@ -62,7 +62,7 @@ class FROGStick(wpilib.Joystick):
 
         now = self.timer.getFPGATimestamp()
         if self.getRawButton(num):
-            if (now - self.button_latest[num]) > self.DEBOUNCE_PERIOD:
+            if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
                 self.button_latest[num] = now
                 return True
         return False
