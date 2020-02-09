@@ -21,7 +21,7 @@ TICKS_PER_ANGLE = 40000 / 180
 
 # PIDs for drivetrain
 VelocityPID = PID(slot=0, f=0.0482)
-PositionPID = PID(slot=0, f=0.003, p=0.0)
+PositionPID = PID(slot=0, f=0.003, p=0.008)
 RotatePID = PID(slot=0, f=0.320, p=0.76)
 TurnPID = PID(p=0.035, d=0.10, i=0.001)
 PIDOutputLimit = 0.66
@@ -31,6 +31,7 @@ TURNDEADBAND = 1.5  # in degrees
 # Motor Control modes
 VELOCITY_MODE = ControlMode.Velocity
 POSITION_MODE = ControlMode.MotionMagic
+
 
 # Motion Magic settings
 MM_ACCELERATION = 4000
@@ -71,7 +72,7 @@ class FROGDrive(DifferentialDrive):
     def config_encoders(self):
         for controller in [self.leftMaster, self.rightMaster]:
             controller.configSelectedFeedbackSensor(
-                FeedbackDevice.CTRE_MagEncoder_Relative, 0, 0
+                FeedbackDevice.IntegratedSensor, 0, 0
             )
 
     def config_motion_magic(self):
@@ -145,7 +146,7 @@ class FROGDrive(DifferentialDrive):
         self.init_nt()
 
         # init DifferentialDrive with left and right controllers
-        DifferentialDrive.__init__(self.leftMaster, self.rightMaster)
+        super().__init__(self.leftMaster, self.rightMaster)
         self.setSafetyEnabled(False)
 
         # TODO: might want to move these to a chassis component that
@@ -240,6 +241,7 @@ class FROGDrive(DifferentialDrive):
             self.init_velocity_mode()
         elif self.control_mode == VELOCITY_MODE:
             self.init_position_mode()
+        print("Control Mode:", self.control_mode)
 
     def updateNT(self):
         """update network tables with drive telemetry"""
@@ -256,10 +258,11 @@ class FROGDrive(DifferentialDrive):
         self.drive_encoders.putNumber(
             "right_vel", self.rightMaster.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
         )
-        if self.control_speed:
-            self.drive_command.putNumber("commanded speed", self.control_speed)
-        if self.control_rotation:
-            self.drive_command.putNumber("commanded rotation", self.control_rotation)
+        if self.control_mode == VELOCITY_MODE:
+            if self.control_speed:
+                self.drive_command.putNumber("commanded speed", self.control_speed)
+            if self.control_rotation:
+                self.drive_command.putNumber("commanded rotation", self.control_rotation)
         if self.left_control:
             self.drive_command.putNumber("left control", self.left_control)
         if self.right_control:
