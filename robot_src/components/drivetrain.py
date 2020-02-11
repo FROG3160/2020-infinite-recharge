@@ -1,5 +1,6 @@
 from magicbot import tunable
-from ctre import WPI_TalonFX, ControlMode, NeutralMode, FeedbackDevice, PigeonIMU
+from ctre import WPI_TalonFX, ControlMode, NeutralMode, \
+    FeedbackDevice, PigeonIMU, TalonFXInvertType
 from wpilib.drive import DifferentialDrive
 import math
 from networktables import NetworkTables
@@ -113,18 +114,20 @@ class FROGDrive(DifferentialDrive):
     def set_encoder_direction(self):
         # Reverses the encoder direction so forward movement always
         # results in a positive increase in the encoder ticks.
-        self.leftMaster.setSensorPhase(True)
-        self.rightMaster.setSensorPhase(True)
+        # Has no effect for Falcon 500 and integrated sensors
+        # self.leftMaster.setSensorPhase(True)
+        # self.rightMaster.setSensorPhase(True)
+        pass
 
     def set_motor_slaves(self):
         self.leftSlave.follow(self.leftMaster)
         self.rightSlave.follow(self.rightMaster)
 
     def set_motor_output(self):
-        self.leftMaster.setInverted(False)
-        self.leftSlave.setInverted(False)
-        self.rightMaster.setInverted(True)
-        self.rightSlave.setInverted(True)
+        self.leftMaster.setInverted(TalonFXInvertType.Clockwise)
+        self.leftSlave.setInverted(TalonFXInvertType.FollowMaster)
+        self.rightMaster.setInverted(TalonFXInvertType.CounterClockwise)
+        self.rightSlave.setInverted(TalonFXInvertType.FollowMaster)
 
     def set_motor_neutral_mode(self):
         self.leftMaster.setNeutralMode(NeutralMode.Coast)
@@ -132,6 +135,7 @@ class FROGDrive(DifferentialDrive):
 
     def setup(self):
         # called by MagicBot after object construction
+
         self.set_motor_slaves()
         self.set_motor_output()
         self.set_motor_neutral_mode()
