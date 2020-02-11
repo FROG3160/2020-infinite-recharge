@@ -1,5 +1,6 @@
 import wpilib
 from .common import remap
+from networktables import NetworkTables
 
 
 class FROGStick(wpilib.Joystick):
@@ -18,17 +19,29 @@ class FROGStick(wpilib.Joystick):
         self.setTwistChannel(2)
         self.button_latest = {}
         self.timer = wpilib.Timer
+        self.init_NT()
 
-    def debounce(self):
-        pass
+    def init_NT(self):
+        NetworkTables.initialize()
+        self.joystick_values = NetworkTables.getTable("joystick_values")
+
+    def update_NT(self, control, value):
+        self.joystick_values.putNumber(control, value)
 
     def getSpeed(self):
         # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
-        return (
-            -self.getY() ** 3 / self.SPEED_DIVISOR
-            if abs(self.getY()) > self.DEADBAND
-            else 0
-        )
+        speed = self.getY()
+        speed = -1 * (speed ** 3 / self.SPEED_DIVISOR
+                      if abs(speed) > self.DEADBAND
+                      else 0
+                      )
+        self.update_NT('speed', speed)
+        return speed
+
+    def getThrottle(self):
+        val = super().getThrottle()
+        self.update_NT('throttle', val)
+        return val
 
     def getRotation(self):
         return (
@@ -64,5 +77,9 @@ class FROGStick(wpilib.Joystick):
         if self.getRawButton(num):
             if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
                 self.button_latest[num] = now
-                return True
-        return False
+                val = True
+
+        val = False
+        self.update_NT('button_{}'.format(num), val)
+        return val
+
