@@ -9,6 +9,7 @@ import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX
 from components.drivetrain import FROGDrive
 from components.driverstation import FROGStick
+from components.turret import FROGTurret, Shooter
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -17,8 +18,9 @@ class FROGbot(magicbot.MagicRobot):
     """
 
     chassis: FROGDrive
-    # loader: Loader
-    # shooter: FROGShooter
+    turret: FROGTurret
+
+    shooter: Shooter
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -32,9 +34,9 @@ class FROGbot(magicbot.MagicRobot):
         self.lowerConveyor = WPI_TalonFX(22)
         self.upperConveyor = WPI_TalonFX(23)
 
-        self.turret = WPI_TalonFX(31)
+        self.turret = WPI_TalonSRX(31)
         self.hood = WPI_TalonSRX(32)
-        self.shooter = WPI_TalonFX(33)
+        self.flywheel = WPI_TalonFX(33)
 
         self.controllerWheel = WPI_TalonSRX(41)
 
@@ -61,6 +63,9 @@ class FROGbot(magicbot.MagicRobot):
             self.joystick.getSpeed(),
             self.joystick.getRotation()
         )
+
+        if self.joystick.getRawButton(12):
+            self.turret.shooter.setFlywheelPercent(self.joystick.getThrottle())
 
     def testInit(self):
 
