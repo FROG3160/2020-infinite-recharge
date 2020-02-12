@@ -22,7 +22,7 @@ TICKS_PER_ANGLE = 40000 / 180
 
 # PIDs for drivetrain
 VelocityPID = PID(slot=0, f=0.0482)
-PositionPID = PID(slot=0, f=0.003, p=0.008)
+PositionPID = PID(slot=0, f=0.003, p=0.05)
 RotatePID = PID(slot=0, f=0.320, p=0.76)
 TurnPID = PID(p=0.035, d=0.10, i=0.001)
 PIDOutputLimit = 0.66
@@ -115,8 +115,8 @@ class FROGDrive(DifferentialDrive):
         # Reverses the encoder direction so forward movement always
         # results in a positive increase in the encoder ticks.
         # Has no effect for Falcon 500 and integrated sensors
-        # self.leftMaster.setSensorPhase(True)
-        # self.rightMaster.setSensorPhase(True)
+        self.leftMaster.setSensorPhase(True)
+        self.rightMaster.setSensorPhase(True)
         pass
 
     def set_motor_slaves(self):
@@ -124,9 +124,9 @@ class FROGDrive(DifferentialDrive):
         self.rightSlave.follow(self.rightMaster)
 
     def set_motor_output(self):
-        self.leftMaster.setInverted(TalonFXInvertType.Clockwise)
+        self.leftMaster.setInverted(TalonFXInvertType.CounterClockwise)
         self.leftSlave.setInverted(TalonFXInvertType.FollowMaster)
-        self.rightMaster.setInverted(TalonFXInvertType.CounterClockwise)
+        self.rightMaster.setInverted(TalonFXInvertType.Clockwise)
         self.rightSlave.setInverted(TalonFXInvertType.FollowMaster)
 
     def set_motor_neutral_mode(self):
@@ -247,20 +247,27 @@ class FROGDrive(DifferentialDrive):
             self.init_position_mode()
         print("Control Mode:", self.control_mode)
 
+    def getEncoderPosition(self, mc):
+        return mc.getSelectedSensorPosition(0)
+
+    def getEncoderVelocity(self, mc):
+
+        return mc.getSelectedSensorVelocity(0)
+
     def updateNT(self):
         """update network tables with drive telemetry"""
 
         self.drive_encoders.putNumber(
-            "left_pos", self.leftMaster.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
+            "left_pos", self.getEncoderPosition(self.leftMaster)
         )
         self.drive_encoders.putNumber(
-            "right_pos", self.rightMaster.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
+            "right_pos", self.getEncoderPosition(self.rightMaster)
         )
         self.drive_encoders.putNumber(
-            "left_vel", self.leftMaster.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
+            "left_vel", self.getEncoderVelocity(self.leftMaster)
         )
         self.drive_encoders.putNumber(
-            "right_vel", self.rightMaster.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
+            "right_vel", self.getEncoderVelocity(self.rightMaster)
         )
         if self.control_mode == VELOCITY_MODE:
             if self.control_speed:
