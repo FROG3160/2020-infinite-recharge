@@ -70,6 +70,8 @@ class Shooter:
         self.config_encoders()
         self.config_motors()
 
+        self.init_NT()
+
     def setFlywheelVelocity(self, vel):
         # run Flywheel at the given velocity
         self.flywheel_speed = self.flywheel_speed + limit(
