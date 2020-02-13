@@ -14,8 +14,8 @@ class Shooter:
 
     flywheelPID = PID(0, p=0)
 
-    turret = WPI_TalonSRX(31)
-    hood = WPI_TalonSRX(32)
+    azimuth = WPI_TalonSRX(31)
+    elevation = WPI_TalonSRX(32)
     flywheel = WPI_TalonFX(33)
 
     turret_mode = ControlMode.PercentOutput
@@ -28,7 +28,7 @@ class Shooter:
     flywheel_speed = 0
 
     fx_motors = [flywheel]
-    srx_motors = [turret, hood]
+    srx_motors = [azimuth, elevation]
 
     def config_encoders(self):
         # Falcon500 motors use the integrated sensor

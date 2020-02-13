@@ -34,8 +34,8 @@ class FROGbot(magicbot.MagicRobot):
         self.lowerConveyor = WPI_TalonFX(22)
         self.upperConveyor = WPI_TalonFX(23)
 
-        self.turret = WPI_TalonSRX(31)
-        self.hood = WPI_TalonSRX(32)
+        self.azimuth = WPI_TalonSRX(31)
+        self.elevation = WPI_TalonSRX(32)
         self.flywheel = WPI_TalonFX(33)
 
         self.controllerWheel = WPI_TalonSRX(41)
