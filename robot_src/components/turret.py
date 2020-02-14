@@ -1,5 +1,5 @@
 '''Intake and shooter components'''
-from ctre import WPI_TalonFX, WPI_TalonSRX, FeedbackDevice, ControlMode, NeutralMode
+from ctre import WPI_TalonFX, WPI_TalonSRX, FeedbackDevice, ControlMode, NeutralMode, TalonFXInvertType
 from .common import PID, limit
 from networktables import NetworkTables
 
@@ -43,9 +43,8 @@ class Shooter:
             )
 
     def config_motors(self):
-        self.flywheel.setInverted(True)
+        self.flywheel.setInverted(TalonFXInvertType.CounterClockwise)
         self.flywheel.setNeutralMode(NeutralMode.Coast)
-        self.flywheel.setSensorPhase(True)
 
     def init_NT(self):
         NetworkTables.initialize()
@@ -89,8 +88,11 @@ class Shooter:
         motor_control.config_kF(pid.slot, pid.f, 0)
 
     def execute(self):
-        self.update_NT('flywheel_encoder', self.flywheel.getSelectedSensorPosition(FeedbackDevice.CTRE_MagEncoder_Relative))
-        self.flywheel.set(ControlMode.Velocity, self.flywheel_speed)
+        self.update_NT(
+            'flywheel_velocity',
+            self.flywheel.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
+        )
+        self.flywheel.set(ControlMode.PercentOutput, self.flywheel_speed)
 
 
 class Intake:
@@ -163,6 +165,5 @@ class FROGTurret:
     shooter: Shooter
     # intake: Intake()
 
-    def __init__():
+    def execute(self):
         pass
-
