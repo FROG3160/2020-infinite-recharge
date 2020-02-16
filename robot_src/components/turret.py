@@ -1,7 +1,10 @@
 '''Intake and shooter components'''
-from ctre import WPI_TalonFX, WPI_TalonSRX, FeedbackDevice, ControlMode, NeutralMode, TalonFXInvertType
+from ctre import WPI_TalonFX, WPI_TalonSRX, FeedbackDevice, ControlMode,\
+    NeutralMode, TalonFXInvertType
 from .common import PID, limit
 from networktables import NetworkTables
+from magicbot import tunable, feedback
+
 
 NEVEREST_CPR = 7 * 60  # motor ticks * gear reduction
 FALCON_CPR = 2048
@@ -19,13 +22,13 @@ class Shooter:
     flywheel = WPI_TalonFX(33)
 
     turret_mode = ControlMode.PercentOutput
-    turret_speed = 0
+    turret_speed = tunable(0)
 
     hood_mode = ControlMode.PercentOutput
-    hood_speed = 0
+    hood_speed = tunable(0)
 
     flywheel_mode = ControlMode.PercentOutput
-    flywheel_speed = 0
+    flywheel_speed = tunable(0)
 
     fx_motors = [flywheel]
     srx_motors = [azimuth, elevation]
