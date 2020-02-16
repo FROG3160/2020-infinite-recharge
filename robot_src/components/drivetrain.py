@@ -89,22 +89,21 @@ class FROGDrive(DifferentialDrive):
 
     def init_position_mode(self):
         self.setPID(PositionPID)
-        self.reset_control_values()
+        self.set_control_values(None)
         self.control_mode = POSITION_MODE
 
     def init_velocity_mode(self):
         self.setPID(VelocityPID)
-        self.left_control = 0
-        self.right_control = 0
+        self.set_control_values(0)
         self.control_mode = VELOCITY_MODE
 
     def init_SDPID(self):
         # initializes attributes for tuning PID with SmartDashboard
         pass
 
-    def reset_control_values(self):
-        self.left_control = None
-        self.right_control = None
+    def set_control_values(self, value):
+        self.left_control = value
+        self.right_control = value
 
     def reset_encoder_values(self):
         # resetting encoder positions to 0
