@@ -1,6 +1,12 @@
-from magicbot import tunable
-from ctre import WPI_TalonFX, ControlMode, NeutralMode, \
-    FeedbackDevice, PigeonIMU, TalonFXInvertType
+from magicbot import tunable, feedback
+from ctre import (
+    WPI_TalonFX,
+    ControlMode,
+    NeutralMode,
+    FeedbackDevice,
+    PigeonIMU,
+    TalonFXInvertType,
+)
 from wpilib.drive import DifferentialDrive
 import math
 from networktables import NetworkTables
@@ -61,6 +67,14 @@ class FROGDrive(DifferentialDrive):
     leftSlave: WPI_TalonFX
     rightSlave: WPI_TalonFX
 
+    control_mode = None
+    control_mode_str = tunable('None')
+
+    commanded_left_vel = tunable('None')
+    commanded_right_vel = tunable('None')
+    commanded_left_pos = tunable('None')
+    commanded_right_pos = tunable('None')
+
     def __init__(self):
         # init can't be used for setting up magic components because
         # they won't be available until after the contstructor has
@@ -90,16 +104,36 @@ class FROGDrive(DifferentialDrive):
     def init_position_mode(self):
         self.setPID(PositionPID)
         self.set_control_values(None)
-        self.control_mode = POSITION_MODE
+        self.set_control_mode(POSITION_MODE)
 
     def init_velocity_mode(self):
         self.setPID(VelocityPID)
         self.set_control_values(0)
-        self.control_mode = VELOCITY_MODE
+        self.set_control_mode(VELOCITY_MODE)
 
     def init_SDPID(self):
         # initializes attributes for tuning PID with SmartDashboard
         pass
+
+    @feedback
+    def get_current_left_pos(self):
+        return self.getEncoderPosition(self.leftMaster)
+
+    @feedback
+    def get_current_right_pos(self):
+        return self.getEncoderPosition(self.rightMaster)
+
+    @feedback
+    def get_current_left_vel(self):
+        return self.getEncoderVelocity(self.leftMaster)
+
+    @feedback
+    def get_current_right_vel(self):
+        return self.getEncoderVelocity(self.rightMaster)
+
+    def set_control_mode(self, mode):
+        self.control_mode = mode
+        self.control_mode_str = mode.__repr__()
 
     def set_control_values(self, value):
         self.left_control = value
@@ -204,11 +238,13 @@ class FROGDrive(DifferentialDrive):
             self.left_control = self.left_control + limit(
                 (leftMotorSpeed * MAX_VELOCITY - self.left_control),
                 -MAX_ACCEL,
-                MAX_ACCEL)
+                MAX_ACCEL,
+            )
             self.right_control = self.right_control + limit(
                 (rightMotorSpeed * MAX_VELOCITY - self.right_control),
                 -MAX_ACCEL,
-                MAX_ACCEL)
+                MAX_ACCEL,
+            )
 
     def setPosition(self, distance):
         # We only want to set the position if it's in POSITION_MODE
@@ -226,7 +262,7 @@ class FROGDrive(DifferentialDrive):
 
             self.left_control = ticks + self.leftMaster.getSelectedSensorPosition()
             self.right_control = -ticks + self.rightMaster.getSelectedSensorPosition()
-            self.control_mode = POSITION_MODE
+            self.set_control_mode(POSITION_MODE)
             self.setPID(RotatePID)
 
     def setTargetAngle(self):
@@ -244,7 +280,6 @@ class FROGDrive(DifferentialDrive):
             self.init_velocity_mode()
         elif self.control_mode == VELOCITY_MODE:
             self.init_position_mode()
-        print("Control Mode:", self.control_mode)
 
     def getEncoderPosition(self, mc):
         return mc.getSelectedSensorPosition(0)
@@ -256,27 +291,15 @@ class FROGDrive(DifferentialDrive):
     def updateNT(self):
         """update network tables with drive telemetry"""
 
-        self.drive_encoders.putNumber(
-            "left_pos", self.getEncoderPosition(self.leftMaster)
-        )
-        self.drive_encoders.putNumber(
-            "right_pos", self.getEncoderPosition(self.rightMaster)
-        )
-        self.drive_encoders.putNumber(
-            "left_vel", self.getEncoderVelocity(self.leftMaster)
-        )
-        self.drive_encoders.putNumber(
-            "right_vel", self.getEncoderVelocity(self.rightMaster)
-        )
-        if self.control_mode == VELOCITY_MODE:
-            if self.control_speed:
-                self.drive_command.putNumber("commanded speed", self.control_speed)
-            if self.control_rotation:
-                self.drive_command.putNumber("commanded rotation", self.control_rotation)
-        if self.left_control:
-            self.drive_command.putNumber("left control", self.left_control)
-        if self.right_control:
-            self.drive_command.putNumber("right control", self.right_control)
+        self.get_current_left_pos()
+        self.get_current_right_pos()
+        self.get_current_left_vel()
+        self.get_current_right_vel()
+
+    def on_enable(self):
+        # TODO: Move initialization on every enable (teleop/auto)
+        # useful for resetting components to a safe/known state
+        pass
 
     def execute(self):
         # set motor values
