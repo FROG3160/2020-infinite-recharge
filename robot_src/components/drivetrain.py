@@ -84,30 +84,13 @@ class FROGDrive(DifferentialDrive):
         # available.
         pass
 
-    def config_encoders(self):
-        for controller in [self.leftMaster, self.rightMaster]:
-            controller.configSelectedFeedbackSensor(
-                FeedbackDevice.IntegratedSensor, 0, 0
-            )
-
-    def config_motion_magic(self):
-        for motor in [self.leftMaster, self.rightMaster]:
-            motor.configMotionAcceleration(MM_ACCELERATION, 0)
-            motor.configMotionCruiseVelocity(MM_CRUISE_VELOCITY, 0)
-
-    def init_nt(self):
-        NetworkTables.initialize()
-        self.drive_encoders = NetworkTables.getTable("drive_encoder_values")
-        self.drive_command = NetworkTables.getTable("drive_commands")
-        self.vision_table = NetworkTables.getTable("Vision")
-
     def init_position_mode(self):
-        self.setPID(PositionPID)
+        self.set_PID(PositionPID)
         self.reset_commanded_pos()
         self.set_control_mode(POSITION_MODE)
 
     def init_velocity_mode(self):
-        self.setPID(VelocityPID)
+        self.set_PID(VelocityPID)
         self.reset_commanded_vel()
         self.set_control_mode(VELOCITY_MODE)
 
@@ -117,77 +100,75 @@ class FROGDrive(DifferentialDrive):
 
     @feedback
     def get_current_left_pos(self):
-        return self.getEncoderPosition(self.leftMaster)
+        return self.get_encoder_position(self.leftMaster)
 
     @feedback
     def get_current_right_pos(self):
-        return self.getEncoderPosition(self.rightMaster)
+        return self.get_encoder_position(self.rightMaster)
 
     @feedback
     def get_current_left_vel(self):
-        return self.getEncoderVelocity(self.leftMaster)
+        return self.get_encoder_velocity(self.leftMaster)
 
     @feedback
     def get_current_right_vel(self):
-        return self.getEncoderVelocity(self.rightMaster)
+        return self.get_encoder_velocity(self.rightMaster)
 
     def set_control_mode(self, mode):
         self.control_mode = mode
         self.control_mode_str = mode.__repr__()
+
+    def get_encoder_position(self, mc):
+        return mc.getSelectedSensorPosition(0)
+
+    def get_encoder_velocity(self, mc):
+        return mc.getSelectedSensorVelocity(0)
 
     def reset_commanded_vel(self):
         self.commanded_left_vel = 0
         self.commanded_right_vel = 0
 
     def reset_commanded_pos(self):
-        # TODO: might need to reset encoders here, or we might
-        # want to set it to the current encoder value
-        # to keep it from moving the robot
-        self.commanded_left_pos = 0
-        self.commanded_right_pos = 0
+        # setting the commanded position to equal the current encoder position
+        # to keep it from causing the robot to move when initializing position
+        # control.
+        self.commanded_left_pos = self.get_encoder_position(self.leftMaster)
+        self.commanded_right_pos = self.get_encoder_position(self.rightMaster)
 
-    def reset_encoder_values(self):
+    def reset_encoders(self):
         # resetting encoder positions to 0
         self.leftMaster.setSelectedSensorPosition(0, 0, 0)
         self.rightMaster.setSelectedSensorPosition(0, 0, 0)
 
-    def set_encoder_direction(self):
-        # Reverses the encoder direction so forward movement always
-        # results in a positive increase in the encoder ticks.
-        # Has no effect for Falcon 500 and integrated sensors
-        self.leftMaster.setSensorPhase(True)
-        self.rightMaster.setSensorPhase(True)
-        pass
-
-    def set_motor_slaves(self):
-        self.leftSlave.follow(self.leftMaster)
-        self.rightSlave.follow(self.rightMaster)
-
-    def set_motor_output(self):
-        self.leftMaster.setInverted(TalonFXInvertType.CounterClockwise)
-        self.leftSlave.setInverted(TalonFXInvertType.FollowMaster)
-        self.rightMaster.setInverted(TalonFXInvertType.Clockwise)
-        self.rightSlave.setInverted(TalonFXInvertType.FollowMaster)
-
-    def set_motor_neutral_mode(self):
-        self.leftMaster.setNeutralMode(NeutralMode.Coast)
-        self.rightMaster.setNeutralMode(NeutralMode.Coast)
-
     def setup(self):
         # called by MagicBot after object construction
+        # use to configure objects that only need to be set up once
 
-        self.set_motor_slaves()
-        self.set_motor_output()
-        self.set_motor_neutral_mode()
+        # configure slaves
+        self.leftSlave.follow(self.leftMaster)
+        self.rightSlave.follow(self.rightMaster)
+        # configure motor outputs
+        self.leftMaster.setInverted(TalonFXInvertType.CounterClockwise)  # = false
+        self.leftSlave.setInverted(TalonFXInvertType.FollowMaster)
+        self.rightMaster.setInverted(TalonFXInvertType.Clockwise)  # = true
+        self.rightSlave.setInverted(TalonFXInvertType.FollowMaster)
+        # configure neutral mode
+        self.leftMaster.setNeutralMode(NeutralMode.Coast)
+        self.rightMaster.setNeutralMode(NeutralMode.Coast)
+        # configure encoders
+        for controller in [self.leftMaster, self.rightMaster]:
+            controller.configSelectedFeedbackSensor(
+                FeedbackDevice.IntegratedSensor, 0, 0
+            )
+        # Reverses the encoder direction so forward movement always
+        # results in a positive increase in the encoder ticks.
+        # Has no effect for Falcon 500 and their integrated sensors
+        # self.leftMaster.setSensorPhase(True)
 
-        self.config_encoders()
-        self.set_encoder_direction()
-        self.reset_encoder_values()
-
-        self.config_motion_magic()
-
-        self.init_velocity_mode()
-        self.init_nt()
+        # configure Motion Magic
+        for motor in [self.leftMaster, self.rightMaster]:
+            motor.configMotionAcceleration(MM_ACCELERATION, 0)
+            motor.configMotionCruiseVelocity(MM_CRUISE_VELOCITY, 0)
 
         # init DifferentialDrive with left and right controllers
         super().__init__(self.leftMaster, self.rightMaster)
@@ -198,14 +179,14 @@ class FROGDrive(DifferentialDrive):
         # self.gyro = FROGGyro(self.leftSlave)
         # self.vision = FROGVision()
 
-    def setPID(self, pid):
+    def set_PID(self, pid):
         for motor_control in (self.leftMaster, self.rightMaster):
             motor_control.config_kP(pid.slot, pid.p, 0)
             motor_control.config_kI(pid.slot, pid.i, 0)
             motor_control.config_kD(pid.slot, pid.d, 0)
             motor_control.config_kF(pid.slot, pid.f, 0)
 
-    def setVelocity(self, speed, rotation):
+    def set_velocity(self, speed, rotation):
         '''take speed and rotation values from joystick which
         are always in the -1 to 1 range.'''
 
@@ -253,7 +234,7 @@ class FROGDrive(DifferentialDrive):
                 MAX_ACCEL,
             )
 
-    def setPosition(self, distance):
+    def set_position(self, distance):
         # We only want to set the position if it's in POSITION_MODE
         if self.control_mode == POSITION_MODE and distance:
             self.left_control = (
@@ -263,41 +244,33 @@ class FROGDrive(DifferentialDrive):
                 distance * TICKS_PER_INCH
             ) + self.rightMaster.getSelectedSensorPosition(0)
 
-    def setRotate(self, angle):
+    def set_rotate(self, angle):
         if angle:
             ticks = angle * self.TICKS_PER_ANGLE
 
             self.left_control = ticks + self.leftMaster.getSelectedSensorPosition()
             self.right_control = -ticks + self.rightMaster.getSelectedSensorPosition()
             self.set_control_mode(POSITION_MODE)
-            self.setPID(RotatePID)
+            self.set_PID(RotatePID)
 
-    def setTargetAngle(self):
+    def set_target_angle(self):
         target_angle = self.vision.getTargetAngle()
         # gyro_angle = self.gyro.getYaw()
 
         if target_angle:
-            self.setRotate(target_angle)
+            self.set_rotate(target_angle)
             # self.positionDrive()
         else:
             self.vision_table.putNumber("Vision_angle", -999)
 
-    def toggleControlMode(self):
+    def toggle_control_mode(self):
         if self.control_mode == POSITION_MODE:
             self.init_velocity_mode()
         elif self.control_mode == VELOCITY_MODE:
             self.init_position_mode()
 
-    def getEncoderPosition(self, mc):
-        return mc.getSelectedSensorPosition(0)
-
-    def getEncoderVelocity(self, mc):
-
-        return mc.getSelectedSensorVelocity(0)
-
-    def updateNT(self):
+    def update_NT(self):
         """update network tables with drive telemetry"""
-
         self.get_current_left_pos()
         self.get_current_right_pos()
         self.get_current_left_vel()
@@ -306,7 +279,8 @@ class FROGDrive(DifferentialDrive):
     def on_enable(self):
         # TODO: Move initialization on every enable (teleop/auto)
         # useful for resetting components to a safe/known state
-        pass
+        self.reset_encoders()
+        self.init_velocity_mode()
 
     def execute(self):
         # set motor values
@@ -318,4 +292,4 @@ class FROGDrive(DifferentialDrive):
             self.leftMaster.set(self.control_mode, self.commanded_left_pos)
             self.rightMaster.set(self.control_mode, self.commanded_right_pos)
 
-        self.updateNT()
+        self.update_NT()
