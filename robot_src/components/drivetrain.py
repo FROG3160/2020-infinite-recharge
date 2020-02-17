@@ -70,10 +70,10 @@ class FROGDrive(DifferentialDrive):
     control_mode = None
     control_mode_str = tunable('None')
 
-    commanded_left_vel = tunable('None')
-    commanded_right_vel = tunable('None')
-    commanded_left_pos = tunable('None')
-    commanded_right_pos = tunable('None')
+    commanded_left_vel = tunable(0)
+    commanded_right_vel = tunable(0)
+    commanded_left_pos = tunable(0)
+    commanded_right_pos = tunable(0)
 
     def __init__(self):
         # init can't be used for setting up magic components because
@@ -103,12 +103,12 @@ class FROGDrive(DifferentialDrive):
 
     def init_position_mode(self):
         self.setPID(PositionPID)
-        self.set_control_values(None)
+        self.reset_commanded_pos()
         self.set_control_mode(POSITION_MODE)
 
     def init_velocity_mode(self):
         self.setPID(VelocityPID)
-        self.set_control_values(0)
+        self.reset_commanded_vel()
         self.set_control_mode(VELOCITY_MODE)
 
     def init_SDPID(self):
@@ -135,9 +135,16 @@ class FROGDrive(DifferentialDrive):
         self.control_mode = mode
         self.control_mode_str = mode.__repr__()
 
-    def set_control_values(self, value):
-        self.left_control = value
-        self.right_control = value
+    def reset_commanded_vel(self):
+        self.commanded_left_vel = 0
+        self.commanded_right_vel = 0
+
+    def reset_commanded_pos(self):
+        # TODO: might need to reset encoders here, or we might
+        # want to set it to the current encoder value
+        # to keep it from moving the robot
+        self.commanded_left_pos = 0
+        self.commanded_right_pos = 0
 
     def reset_encoder_values(self):
         # resetting encoder positions to 0
@@ -235,13 +242,13 @@ class FROGDrive(DifferentialDrive):
 
             # adjust the motor velocity by the requested speed,
             # limited by the max velocity allowed.
-            self.left_control = self.left_control + limit(
-                (leftMotorSpeed * MAX_VELOCITY - self.left_control),
+            self.commanded_left_vel = self.commanded_left_vel + limit(
+                (leftMotorSpeed * MAX_VELOCITY - self.commanded_left_vel),
                 -MAX_ACCEL,
                 MAX_ACCEL,
             )
-            self.right_control = self.right_control + limit(
-                (rightMotorSpeed * MAX_VELOCITY - self.right_control),
+            self.commanded_right_vel = self.commanded_right_vel + limit(
+                (rightMotorSpeed * MAX_VELOCITY - self.commanded_right_vel),
                 -MAX_ACCEL,
                 MAX_ACCEL,
             )
@@ -304,7 +311,11 @@ class FROGDrive(DifferentialDrive):
     def execute(self):
         # set motor values
 
-        if self.control_mode and self.left_control and self.right_control:
-            self.leftMaster.set(self.control_mode, self.left_control)
-            self.rightMaster.set(self.control_mode, self.right_control)
+        if self.control_mode == VELOCITY_MODE:
+            self.leftMaster.set(self.control_mode, self.commanded_left_vel)
+            self.rightMaster.set(self.control_mode, self.commanded_right_vel)
+        elif self.control_mode == POSITION_MODE:
+            self.leftMaster.set(self.control_mode, self.commanded_left_pos)
+            self.rightMaster.set(self.control_mode, self.commanded_right_pos)
+
         self.updateNT()
