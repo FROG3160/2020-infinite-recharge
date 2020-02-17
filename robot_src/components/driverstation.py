@@ -31,10 +31,9 @@ class FROGStick(wpilib.Joystick):
     def getSpeed(self):
         # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
         speed = self.getY()
-        speed = -1 * (speed ** 3 / self.SPEED_DIVISOR
-                      if abs(speed) > self.DEADBAND
-                      else 0
-                      )
+        speed = -1 * (
+            speed ** 3 / self.SPEED_DIVISOR if abs(speed) > self.DEADBAND else 0
+        )
         self.update_NT('speed', speed)
         return speed
 
@@ -57,7 +56,6 @@ class FROGStick(wpilib.Joystick):
             1,
             self.ROTATION_MIN,
             self.ROTATION_MAX,
-
         )
 
     def getRangeRotation(self):
@@ -69,17 +67,19 @@ class FROGStick(wpilib.Joystick):
             self.ROTATION_MAX,
         )
 
+    def getButton(self, num):
+        val = self.getRawButton(num)
+        self.update_NT('button_{}'.format(num), val)
+        return val
+
     def getDebouncedButton(self, num):
         """Returns the value of the joystick button. If the button is held down, then
         True will only be returned once every ``debounce_period`` seconds"""
-
+        val = False
         now = self.timer.getFPGATimestamp()
         if self.getRawButton(num):
             if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
                 self.button_latest[num] = now
                 val = True
-
-        val = False
         self.update_NT('button_{}'.format(num), val)
         return val
-

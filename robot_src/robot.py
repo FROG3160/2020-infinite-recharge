@@ -46,25 +46,22 @@ class FROGbot(magicbot.MagicRobot):
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
-        self.chassis.reset_encoder_values()
+        self.chassis.reset_encoders()
 
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
 
-        if self.joystick.getDebouncedButton(11) == 1:
-            self.chassis.toggleControlMode()
+        if self.joystick.getDebouncedButton(11) == True:
+            self.chassis.toggle_control_mode()
 
         if self.joystick.getPOV() == 0:
-            self.chassis.setPosition(36)  # tell it to roll forward 36 inches
+            self.chassis.set_position(36)  # tell it to roll forward 36 inches
         if self.joystick.getPOV() == 180:
-            self.chassis.setPosition(-36)  # tell it to roll backward 36 inches
+            self.chassis.set_position(-36)  # tell it to roll backward 36 inches
         # feed joystick to the drivetrain
-        self.chassis.setVelocity(
-            self.joystick.getSpeed(),
-            self.joystick.getRotation()
-        )
+        self.chassis.set_velocity(self.joystick.getSpeed(), self.joystick.getRotation())
 
-        if self.joystick.getRawButton(12):
+        if self.joystick.getButton(12):
             self.turret.shooter.setFlywheelPercent(self.joystick.getThrottle())
 
     def testInit(self):
