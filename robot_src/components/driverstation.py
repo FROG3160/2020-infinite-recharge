@@ -23,9 +23,10 @@ class FROGStick(wpilib.Joystick):
         self.setTwistChannel(2)
         self.button_latest = {}
         self.timer = wpilib.Timer
+        self.nt = NetworkTables.getTable("FROGStick_values")
 
     def update_NT(self, control, value):
-        self.joystick_values.putNumber(control, value)
+        self.nt.putNumber(control, value)
 
     @feedback
     def get_speed(self):
