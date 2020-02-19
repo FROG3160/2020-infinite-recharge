@@ -1,6 +1,10 @@
 import wpilib
 from .common import remap
 from networktables import NetworkTables
+from magicbot import tunable, feedback
+
+LEFTHAND = wpilib.XboxController.Hand.kLeftHand
+RIGHTHAND = wpilib.XboxController.Hand.kRightHand
 
 
 class FROGStick(wpilib.Joystick):
@@ -19,16 +23,12 @@ class FROGStick(wpilib.Joystick):
         self.setTwistChannel(2)
         self.button_latest = {}
         self.timer = wpilib.Timer
-        self.init_NT()
-
-    def init_NT(self):
-        NetworkTables.initialize()
-        self.joystick_values = NetworkTables.getTable("joystick_values")
 
     def update_NT(self, control, value):
         self.joystick_values.putNumber(control, value)
 
-    def getSpeed(self):
+    @feedback
+    def get_speed(self):
         # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
         speed = self.getY()
         speed = -1 * (
@@ -37,12 +37,14 @@ class FROGStick(wpilib.Joystick):
         self.update_NT('speed', speed)
         return speed
 
-    def getThrottle(self):
+    @feedback
+    def get_throttle(self):
         val = super().getThrottle()
         self.update_NT('throttle', val)
         return val
 
-    def getRotation(self):
+    @feedback
+    def get_rotation(self):
         return (
             self.getTwist() / self.ROTATION_DIVISOR
             if abs(self.getTwist()) > self.DEADBAND
@@ -67,12 +69,12 @@ class FROGStick(wpilib.Joystick):
             self.ROTATION_MAX,
         )
 
-    def getButton(self, num):
+    def get_button(self, num):
         val = self.getRawButton(num)
         self.update_NT('button_{}'.format(num), val)
         return val
 
-    def getDebouncedButton(self, num):
+    def get_debounced_button(self, num):
         """Returns the value of the joystick button. If the button is held down, then
         True will only be returned once every ``debounce_period`` seconds"""
         val = False
@@ -83,3 +85,101 @@ class FROGStick(wpilib.Joystick):
                 val = True
         self.update_NT('button_{}'.format(num), val)
         return val
+
+
+class FROGXboxSimple(wpilib.XboxController):
+    DEADBAND = 0.1
+    SPEED_DIVISOR = 1
+    ROTATION_DIVISOR = 1
+    DEBOUNCE_PERIOD = 0.5
+
+    def __init__(self, channel):
+
+        super().__init__(channel)
+        # self.setThrottleChannel(3)
+        # self.setTwistChannel()
+        self.button_latest = {}
+        self.timer = wpilib.Timer
+        self.nt = NetworkTables.getTable("FROGXboxSimple_values")
+
+    @feedback
+    def get_speed(self):
+        # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
+        speed = self.getY(LEFTHAND)
+        speed = -1 * (
+            speed ** 3 / self.SPEED_DIVISOR if abs(speed) > self.DEADBAND else 0
+        )
+        return speed
+
+    @feedback
+    def get_rotation(self):
+        return (
+            self.getX(LEFTHAND) / self.ROTATION_DIVISOR
+            if abs(self.getX(LEFTHAND)) > self.DEADBAND
+            else 0
+        )
+
+    def get_debounced_button(self, num):
+        """Returns the value of the joystick button. If the button is held down, then
+        True will only be returned once every ``debounce_period`` seconds"""
+        val = False
+        now = self.timer.getFPGATimestamp()
+        if self.getRawButton(num):
+            if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
+                self.button_latest[num] = now
+                val = True
+        self.update_nt('button_{}'.format(num), val)
+        return val
+
+    def update_nt(self, key, value):
+        """update network tables with drive telemetry"""
+        self.nt.putNumber(key, value)
+
+
+class FROGXboxDriver(wpilib.XboxController):
+    DEADBAND = 0.1
+    SPEED_DIVISOR = 1
+    ROTATION_DIVISOR = 1
+    DEBOUNCE_PERIOD = 0.5
+
+    def __init__(self, channel):
+
+        super().__init__(channel)
+        # self.setThrottleChannel(3)
+        # self.setTwistChannel()
+        self.button_latest = {}
+        self.timer = wpilib.Timer
+        self.nt = NetworkTables.getTable("FROGXboxDriver_values")
+
+    @feedback
+    def get_speed(self):
+        # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
+        forward = self.getTriggerAxis(RIGHTHAND)
+        backward = self.getTriggerAxis(LEFTHAND)
+        speed = forward - backward
+        speed = speed ** 3 / self.SPEED_DIVISOR if abs(speed) > self.DEADBAND else 0
+        return speed
+
+    @feedback
+    def get_rotation(self):
+        return (
+            self.getX(LEFTHAND) / self.ROTATION_DIVISOR
+            if abs(self.getX(LEFTHAND)) > self.DEADBAND
+            else 0
+        )
+
+    def get_debounced_button(self, num):
+        """Returns the value of the joystick button. If the button is held down, then
+        True will only be returned once every ``debounce_period`` seconds"""
+        val = False
+        now = self.timer.getFPGATimestamp()
+        if self.getRawButton(num):
+            if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
+                self.button_latest[num] = now
+                val = True
+        self.update_nt('button_{}'.format(num), val)
+        return val
+
+    def update_nt(self, key, value):
+        """update network tables with drive telemetry"""
+        self.nt.putNumber(key, value)
