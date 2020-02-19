@@ -8,7 +8,7 @@ import magicbot
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX
 from components.drivetrain import FROGDrive
-from components.driverstation import FROGStick
+from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxSimple
 from components.turret import FROGTurret, Shooter
 
 
@@ -41,36 +41,38 @@ class FROGbot(magicbot.MagicRobot):
         self.controllerWheel = WPI_TalonSRX(41)
 
         # controls
-        self.joystick = FROGStick(0)
-        self.xbox = wpilib.XboxController(1)
+        self.drive_stick = FROGStick(0)
+        self.shooter_stick = wpilib.XboxController(1)
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
         self.chassis.reset_encoders()
+        self.chassis.init_velocity_mode()
 
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
 
-        if self.joystick.getDebouncedButton(11) == True:
+        if self.drive_stick.get_debounced_button(11) == True:
             self.chassis.toggle_control_mode()
 
-        if self.joystick.getPOV() == 0:
+        if self.drive_stick.getPOV() == 0:
             self.chassis.set_position(36)  # tell it to roll forward 36 inches
-        if self.joystick.getPOV() == 180:
+        if self.drive_stick.getPOV() == 180:
             self.chassis.set_position(-36)  # tell it to roll backward 36 inches
         # feed joystick to the drivetrain
-        self.chassis.set_velocity(self.joystick.getSpeed(), self.joystick.getRotation())
-
-        if self.joystick.getButton(12):
-            self.turret.shooter.setFlywheelPercent(self.joystick.getThrottle())
+        self.chassis.set_velocity(
+            self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+        )
 
     def testInit(self):
 
-        pass
+        self.chassis.reset_encoders()
+        self.chassis.init_position_mode()
 
     def testPeriodic(self):
 
-        pass
+        if self.drive_stick.get_button(12):
+            self.turret.shooter.setFlywheelPercent(self.drive_stick.get_throttle())
 
 
 if __name__ == "__main__":
