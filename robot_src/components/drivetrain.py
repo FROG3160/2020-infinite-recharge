@@ -28,10 +28,14 @@ TICKS_PER_ANGLE = 40000 / 180
 
 # PIDs for drivetrain
 VelocityPID = PID(slot=0, f=0.0482)
+VelocityPID_calculated = PID(slot=0, f=0.057995, p=0.063832)
+DiffDrivePID_calculated = PID(slot=0, f=0.028998, p=0.031916)
+
 PositionPID = PID(slot=0, f=0.003, p=0.05)
 RotatePID = PID(slot=0, f=0.320, p=0.76)
 TurnPID = PID(p=0.035, d=0.10, i=0.001)
 PIDOutputLimit = 0.66
+
 
 TURNDEADBAND = 1.5  # in degrees
 
@@ -41,8 +45,8 @@ POSITION_MODE = ControlMode.MotionMagic
 
 
 # Motion Magic settings
-MM_ACCELERATION = 4000
-MM_CRUISE_VELOCITY = 8000
+MM_ACCELERATION = 10000  # 4000
+MM_CRUISE_VELOCITY = 10000  # 8000
 
 
 class FROGGyro(PigeonIMU):
@@ -279,8 +283,7 @@ class FROGDrive(DifferentialDrive):
     def on_enable(self):
         # TODO: Move initialization on every enable (teleop/auto)
         # useful for resetting components to a safe/known state
-        self.reset_encoders()
-        self.init_velocity_mode()
+        self.reset_encoders()  # this is currently run in teleop_init, too
 
     def execute(self):
         # set motor values
