@@ -1,6 +1,12 @@
 '''Intake and shooter components'''
-from ctre import WPI_TalonFX, WPI_TalonSRX, FeedbackDevice, ControlMode,\
-    NeutralMode, TalonFXInvertType
+from ctre import (
+    WPI_TalonFX,
+    WPI_TalonSRX,
+    FeedbackDevice,
+    ControlMode,
+    NeutralMode,
+    TalonFXInvertType,
+)
 from .common import PID, limit
 from networktables import NetworkTables
 from magicbot import tunable, feedback
@@ -9,7 +15,9 @@ from magicbot import tunable, feedback
 NEVEREST_CPR = 7 * 60  # motor ticks * gear reduction
 FALCON_CPR = 2048
 FLYWHEEL_MAX_VEL = 25000  # Falcons are maxing at 20k - 21k
-FLYWHEEL_MAX_ACCEL = FLYWHEEL_MAX_VEL / 50  # sampled 50 times a second makes this MAX ACCEL/sec
+FLYWHEEL_MAX_ACCEL = (
+    FLYWHEEL_MAX_VEL / 50
+)  # sampled 50 times a second makes this MAX ACCEL/sec
 FLYWHEEL_MAX_DECEL = FLYWHEEL_MAX_ACCEL
 
 
@@ -41,20 +49,11 @@ class Shooter:
             )
         # These motors are using an attached Quad Encoder
         for controller in self.srx_motors:
-            controller.configSelectedFeedbackSensor(
-                FeedbackDevice.QuadEncoder, 0, 0
-            )
+            controller.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, 0, 0)
 
     def config_motors(self):
         self.flywheel.setInverted(TalonFXInvertType.CounterClockwise)
         self.flywheel.setNeutralMode(NeutralMode.Coast)
-
-    def init_NT(self):
-        NetworkTables.initialize()
-        self.turret_encoders = NetworkTables.getTable("turret_encoder_values")
-
-    def update_NT(self, control, value):
-        self.turret_encoders.putNumber(control, value)
 
     def set_encoder_direction(self):
         pass
@@ -71,15 +70,15 @@ class Shooter:
 
         self.config_encoders()
         self.config_motors()
-
-        self.init_NT()
+        self.nt = NetworkTables.getTable("Shooter_values")
 
     def setFlywheelVelocity(self, vel):
         # run Flywheel at the given velocity
         self.flywheel_speed = self.flywheel_speed + limit(
             (vel * FLYWHEEL_MAX_VEL - self.flywheel_speed),
             -FLYWHEEL_MAX_ACCEL,
-            FLYWHEEL_MAX_DECEL)
+            FLYWHEEL_MAX_DECEL,
+        )
 
     def setFlywheelPercent(self, speed):
         self.flywheel_speed = speed
@@ -90,10 +89,14 @@ class Shooter:
         motor_control.config_kD(pid.slot, pid.d, 0)
         motor_control.config_kF(pid.slot, pid.f, 0)
 
+    def update_nt(self, key, value):
+        """update network tables with drive telemetry"""
+        self.nt.putNumber(key, value)
+
     def execute(self):
-        self.update_NT(
+        self.update_nt(
             'flywheel_velocity',
-            self.flywheel.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor)
+            self.flywheel.getSelectedSensorVelocity(FeedbackDevice.IntegratedSensor),
         )
         self.flywheel.set(ControlMode.PercentOutput, self.flywheel_speed)
 
@@ -105,13 +108,13 @@ class Intake:
     upperConveyor = WPI_TalonFX(23)
 
     intake_mode = ControlMode.PercentOutput
-    intake_speed = 0
+    intake_speed = tunable(0)
 
     lowerConveyor_mode = ControlMode.PercentOutput
-    lowerConveyor_speed = 0
+    lowerConveyor_speed = tunable(0)
 
     upperConveyor_mode = ControlMode.PercentOutput
-    upperConveyor_speed = 0
+    upperConveyor_speed = tunable(0)
 
     fx_motors = [lowerConveyor, upperConveyor]
     srx_motors = [intake]
@@ -124,9 +127,7 @@ class Intake:
             )
         # These motors are using an attached Quad Encoder
         for controller in self.srx_motors:
-            controller.configSelectedFeedbackSensor(
-                FeedbackDevice.QuadEncoder, 0, 0
-            )
+            controller.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder, 0, 0)
 
     def config_motors(self):
         pass
