@@ -1,7 +1,9 @@
 import wpilib
+from wpilib.interfaces import GenericHID
 from .common import remap
 from networktables import NetworkTables
 from magicbot import tunable, feedback
+
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
@@ -140,7 +142,7 @@ class FROGXboxSimple(wpilib.XboxController):
 class FROGXboxDriver(wpilib.XboxController):
     DEADBAND = 0.1
     SPEED_DIVISOR = 1
-    ROTATION_DIVISOR = 1
+    ROTATION_DIVISOR = 1.5
     DEBOUNCE_PERIOD = 0.5
 
     def __init__(self, channel):
@@ -149,6 +151,7 @@ class FROGXboxDriver(wpilib.XboxController):
         # self.setThrottleChannel(3)
         # self.setTwistChannel()
         self.button_latest = {}
+        self.pov_latest = None
         self.timer = wpilib.Timer
         self.nt = NetworkTables.getTable("FROGXboxDriver_values")
 
@@ -179,6 +182,69 @@ class FROGXboxDriver(wpilib.XboxController):
                 self.button_latest[num] = now
                 val = True
         self.update_nt('button_{}'.format(num), val)
+        return val
+
+    def update_nt(self, key, value):
+        """update network tables with drive telemetry"""
+        self.nt.putNumber(key, value)
+
+
+class FROGXboxGunner(wpilib.XboxController):
+    DEADBAND = 0.1
+    ELEVATION_DIVISOR = 1
+    ROTATION_DIVISOR = 1
+    DEBOUNCE_PERIOD = 0.5
+
+    def __init__(self, channel):
+
+        super().__init__(channel)
+        self.button_latest = {}
+        self.pov_latest = -1
+        self.timer = wpilib.Timer
+        self.nt = NetworkTables.getTable("FROGXboxGunner_values")
+
+    @feedback
+    def get_elevation(self):
+        return (
+            self.getY(RIGHTHAND) / self.ELEVATION_DIVISOR
+            if abs(self.getX(RIGHTHAND)) > self.DEADBAND
+            else 0
+        )
+
+    @feedback
+    def get_rotation(self):
+        return (
+            self.getX(LEFTHAND) / self.ROTATION_DIVISOR
+            if abs(self.getX(LEFTHAND)) > self.DEADBAND
+            else 0
+        )
+
+    def get_debounced_button(self, num):
+        """Returns the value of the joystick button. If the button is held down, then
+        True will only be returned once every ``debounce_period`` seconds"""
+        val = False
+        now = self.timer.getFPGATimestamp()
+        if self.getRawButton(num):
+            if (now - self.button_latest.get(num, 0)) > self.DEBOUNCE_PERIOD:
+                self.button_latest[num] = now
+                val = True
+        self.update_nt('button_{}'.format(num), val)
+        return val
+
+    def get_debounced_POV(self):
+        """Returns the value of the joystick button. If the button is held down, then
+        True will only be returned once every ``debounce_period`` seconds"""
+        val = -1
+        now = self.timer.getFPGATimestamp()
+        pov = self.getPOV()
+        if pov > -1:
+            if (now - self.pov_latest) > self.DEBOUNCE_PERIOD:
+                self.pov_latest = now
+                val = pov
+                self.setRumble(GenericHID.RumbleType.kRightRumble, 1)
+            else:
+                self.setRumble(GenericHID.RumbleType.kRightRumble, 0)
+        self.update_nt('pov', val)
         return val
 
     def update_nt(self, key, value):
