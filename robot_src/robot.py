@@ -8,7 +8,7 @@ import magicbot
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX
 from components.drivetrain import FROGDrive
-from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxSimple
+from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxGunner
 from components.turret import FROGTurret, Shooter
 
 
@@ -41,8 +41,8 @@ class FROGbot(magicbot.MagicRobot):
         self.controllerWheel = WPI_TalonSRX(41)
 
         # controls
-        self.drive_stick = FROGStick(0)
-        self.shooter_stick = wpilib.XboxController(1)
+        self.drive_stick = FROGXboxDriver(0)
+        self.gunner_stick = FROGXboxGunner(1)
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
@@ -63,6 +63,16 @@ class FROGbot(magicbot.MagicRobot):
         self.chassis.set_velocity(
             self.drive_stick.get_speed(), self.drive_stick.get_rotation()
         )
+        self.shooter.setAzimuthPercent(self.gunner_stick.get_rotation())
+        self.shooter.setElevationPercent(self.gunner_stick.get_elevation())
+        if self.gunner_stick.get_debounced_POV() == 0:
+            self.shooter.incrementFlywheelPercent()
+        elif self.gunner_stick.get_debounced_POV() == 180:
+            self.shooter.decrementFlywheelPercent()
+        if self.gunner_stick.getBButtonPressed():
+            self.shooter.stopFlywheelPercent()
+
+        self.gunner_stick.setRumble(arg1, arg2)
 
     def testInit(self):
 

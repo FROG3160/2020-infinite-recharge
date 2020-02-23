@@ -9,7 +9,6 @@ from ctre import (
 )
 from wpilib.drive import DifferentialDrive
 import math
-from networktables import NetworkTables
 from .common import PID, limit
 
 # from subsystems.vision import FROGVision
@@ -20,7 +19,7 @@ from .common import PID, limit
 # and the encoder has half the resolution of the ones from last year.
 ENCODER_TICKS_PER_REV = 2048 * 10.71  # motor ticks * gear reduction
 MAX_VELOCITY = 12000  # Falcons are maxing at 20k - 21k
-MAX_ACCEL = MAX_VELOCITY / 50  # sampled 50 times a second makes this MAX ACCEL/sec
+MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/sec
 MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
 TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
@@ -288,11 +287,12 @@ class FROGDrive(DifferentialDrive):
     def execute(self):
         # set motor values
 
-        if self.control_mode == VELOCITY_MODE:
-            self.leftMaster.set(self.control_mode, self.commanded_left_vel)
-            self.rightMaster.set(self.control_mode, self.commanded_right_vel)
-        elif self.control_mode == POSITION_MODE:
-            self.leftMaster.set(self.control_mode, self.commanded_left_pos)
-            self.rightMaster.set(self.control_mode, self.commanded_right_pos)
+        #        if self.control_mode == VELOCITY_MODE:
+        self.leftMaster.set(self.control_mode, self.commanded_left_vel)
+
+        self.rightMaster.set(self.control_mode, self.commanded_right_vel)
+        # elif self.control_mode == POSITION_MODE:
+        # self.leftMaster.set(self.control_mode, self.commanded_left_pos)
+        # self.rightMaster.set(self.control_mode, self.commanded_right_pos)
 
         self.update_NT()
