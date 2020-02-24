@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""
-    This is a demo program showing the use of the RobotDrive class,
-    specifically it contains the code necessary to operate a robot with
-    a single joystick
-"""
+
 import magicbot
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX
 from components.drivetrain import FROGDrive
 from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxGunner
-from components.turret import FROGTurret, Shooter
+from components.shooter import (
+    FROGShooter,
+    Azimuth,
+    Elevation,
+    Flywheel,
+    Loader,
+    Conveyor,
+    Intake,
+)
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -18,9 +22,14 @@ class FROGbot(magicbot.MagicRobot):
     """
 
     chassis: FROGDrive
-    turret: FROGTurret
+    shooter: FROGShooter
 
-    shooter: Shooter
+    azimuth: Azimuth
+    elevation: Elevation
+    flywheel: Flywheel
+    loader: Loader
+    conveyor: Conveyor
+    intake: Intake
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -30,15 +39,15 @@ class FROGbot(magicbot.MagicRobot):
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
 
-        self.intake = WPI_TalonSRX(21)
-        self.lowerConveyor = WPI_TalonFX(22)
-        self.upperConveyor = WPI_TalonFX(23)
+        self.intake_motor = WPI_TalonSRX(21)
+        self.conveyor_motor = WPI_TalonSRX(22)
+        self.loader_motor = WPI_TalonSRX(23)
 
-        self.azimuth = WPI_TalonSRX(31)
-        self.elevation = WPI_TalonSRX(32)
-        self.flywheel = WPI_TalonFX(33)
+        self.azimuth_motor = WPI_TalonSRX(31)
+        self.elevation_motor = WPI_TalonSRX(32)
+        self.flywheel_motor = WPI_TalonFX(33)
 
-        self.controllerWheel = WPI_TalonSRX(41)
+        self.controlwheel_motor = WPI_TalonSRX(41)
 
         # controls
         self.drive_stick = FROGXboxDriver(0)
@@ -63,16 +72,15 @@ class FROGbot(magicbot.MagicRobot):
         self.chassis.set_velocity(
             self.drive_stick.get_speed(), self.drive_stick.get_rotation()
         )
-        self.shooter.setAzimuthPercent(self.gunner_stick.get_rotation())
-        self.shooter.setElevationPercent(self.gunner_stick.get_elevation())
-        if self.gunner_stick.get_debounced_POV() == 0:
-            self.shooter.incrementFlywheelPercent()
-        elif self.gunner_stick.get_debounced_POV() == 180:
-            self.shooter.decrementFlywheelPercent()
-        if self.gunner_stick.getBButtonPressed():
-            self.shooter.stopFlywheelPercent()
 
-        self.gunner_stick.setRumble(arg1, arg2)
+        self.shooter.azimuth.set_speed(self.gunner_stick.get_rotation())
+        self.shooter.elevation.set_speed(self.gunner_stick.get_elevation())
+        if self.gunner_stick.get_debounced_POV() == 0:
+            self.shooter.flywheel.incrementFlywheelPercent()
+        elif self.gunner_stick.get_debounced_POV() == 180:
+            self.shooter.flywheel.decrementFlywheelPercent()
+        if self.gunner_stick.getBButtonPressed():
+            self.shooter.flywheel.disable()
 
     def testInit(self):
 
@@ -80,9 +88,7 @@ class FROGbot(magicbot.MagicRobot):
         self.chassis.init_position_mode()
 
     def testPeriodic(self):
-
-        if self.drive_stick.get_button(12):
-            self.turret.shooter.setFlywheelPercent(self.drive_stick.get_throttle())
+        pass
 
 
 if __name__ == "__main__":
