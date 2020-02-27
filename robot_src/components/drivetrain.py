@@ -9,7 +9,7 @@ from ctre import (
 )
 from wpilib.drive import DifferentialDrive
 import math
-from .common import PID, limit
+from .common import TalonPID, limit
 
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
@@ -26,13 +26,13 @@ TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
 TICKS_PER_ANGLE = 40000 / 180
 
 # PIDs for drivetrain
-VelocityPID = PID(slot=0, f=0.0482)
-VelocityPID_calculated = PID(slot=0, f=0.057995, p=0.063832)
-DiffDrivePID_calculated = PID(slot=0, f=0.028998, p=0.031916)
+VelocityPID = TalonPID(slot=0, f=0.0482)
+VelocityPID_calculated = TalonPID(slot=0, f=0.057995, p=0.063832)
+DiffDrivePID_calculated = TalonPID(slot=0, f=0.028998, p=0.031916)
 
-PositionPID = PID(slot=0, f=0.003, p=0.05)
-RotatePID = PID(slot=0, f=0.320, p=0.76)
-TurnPID = PID(p=0.035, d=0.10, i=0.001)
+PositionPID = TalonPID(slot=0, f=0.003, p=0.05)
+RotatePID = TalonPID(slot=0, f=0.320, p=0.76)
+TurnPID = TalonPID(p=0.035, d=0.10, i=0.001)
 PIDOutputLimit = 0.66
 
 
@@ -70,7 +70,7 @@ class FROGDrive(DifferentialDrive):
     leftSlave: WPI_TalonFX
     rightSlave: WPI_TalonFX
 
-    control_mode = None
+    control_mode = ControlMode.Position
     control_mode_str = tunable('None')
 
     commanded_left_vel = tunable(0)
