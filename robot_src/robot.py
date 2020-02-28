@@ -14,6 +14,7 @@ from components.shooter import (
     Conveyor,
     Intake,
 )
+from components.common import LED
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -49,9 +50,14 @@ class FROGbot(magicbot.MagicRobot):
 
         self.controlwheel_motor = WPI_TalonSRX(41)
 
+        self.liftLeft = WPI_TalonFX(51)
+        self.liftRight = WPI_TalonFX(52)
+
         # controls
         self.drive_stick = FROGXboxDriver(0)
         self.gunner_stick = FROGXboxGunner(1)
+
+        self.led = LED(0, 29)
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
@@ -63,6 +69,8 @@ class FROGbot(magicbot.MagicRobot):
 
         if self.drive_stick.get_debounced_button(11) == True:
             self.chassis.toggle_control_mode()
+        if self.drive_stick.getStickButtonPressed(wpilib.XboxController.Hand.kLeftHand):
+            self.chassis.resetGyro()
 
         if self.drive_stick.getPOV() == 0:
             self.chassis.set_position(36)  # tell it to roll forward 36 inches
@@ -73,14 +81,18 @@ class FROGbot(magicbot.MagicRobot):
             self.drive_stick.get_speed(), self.drive_stick.get_rotation()
         )
 
-        self.shooter.azimuth.set_speed(self.gunner_stick.get_rotation())
-        self.shooter.elevation.set_speed(self.gunner_stick.get_elevation())
+        self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+        self.azimuth.enable()
+        self.elevation.set_speed(self.gunner_stick.get_elevation())
+        self.elevation.enable()
         if self.gunner_stick.get_debounced_POV() == 0:
-            self.shooter.flywheel.incrementFlywheelPercent()
+            self.flywheel.incrementSpeed()
+            self.flywheel.enable()
         elif self.gunner_stick.get_debounced_POV() == 180:
-            self.shooter.flywheel.decrementFlywheelPercent()
+            self.flywheel.decrementSpeed()
+            self.flywheel.enable()
         if self.gunner_stick.getBButtonPressed():
-            self.shooter.flywheel.disable()
+            self.flywheel.disable()
 
     def testInit(self):
 

@@ -24,9 +24,9 @@ FLYWHEEL_MAX_ACCEL = (
 )  # sampled 50 times a second makes this MAX ACCEL/sec
 FLYWHEEL_MAX_DECEL = -FLYWHEEL_MAX_ACCEL
 FLYWHEEL_INCREMENT = 250  # increment for manually adjusting speed
-FLYWHEEL_SPEED_GOAL = 14000
-FLYWHEEL_SPEED_LOB = 7000
-FLYWHEEL_SPEED_TOLERANCE = 500
+FLYWHEEL_VELOCITY_PORTAL = 14000
+FLYWHEEL_VELOCITY_LOB = 7000
+FLYWHEEL_VELOCITY_TOLERANCE = 500
 
 # TODO: change over to Position Mode, or MM?
 ELEVATION_MODE = ControlMode.PercentOutput
@@ -60,13 +60,13 @@ class Azimuth:
         self.enabled = True
 
     # read current encoder position
-    @feedback
+    @feedback(key='Position')
     def getPosition(self):
         return self.azimuth_motor.getSelectedSensorPosition(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback
+    @feedback(key='Percent')
     def getSpeed(self):
         return self.azimuth_motor.get()
 
@@ -79,10 +79,10 @@ class Azimuth:
         self.azimuth_motor.setInverted(False)
         self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
         self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
-        self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0, 0)
-        self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0, 0)
-        self.azimuth_motor.configForwardSoftLimitEnable(True, 0, 0)
-        self.azimuth_motor.configReverseSoftLimitEnable(True, 0, 0)
+        self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
+        self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
+        self.azimuth_motor.configForwardSoftLimitEnable(True, 0)
+        self.azimuth_motor.configReverseSoftLimitEnable(True, 0)
 
     def setPosition(self, value):
         # move to the given position
@@ -113,7 +113,7 @@ class Conveyor:
     def enable(self):
         self.enabled = True
 
-    @feedback
+    @feedback(key='Percent')
     def get_speed(self):
         return self.conveyor_motor.get()
 
@@ -148,13 +148,13 @@ class Elevation:
         self.enabled = True
 
     # read current encoder position
-    @feedback
+    @feedback(key='Position')
     def get_position(self):
         return self.elevation_motor.getSelectedSensorPosition(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback
+    @feedback(key='Percent')
     def get_speed(self):
         return self.elevation_motor.get()
 
@@ -187,12 +187,10 @@ class Flywheel:
     _PID = FLYWHEEL_PID
     flywheel_motor: WPI_TalonFX
 
-
-
     def __init__(self):
         self.enabled = False
         self._controlMode = FLYWHEEL_MODE
-        self._velocityTarget = FLYWHEEL_SPEED_GOAL
+        self._velocityTarget = FLYWHEEL_VELOCITY_PORTAL
         self._velocity = tunable(0)
 
     def disable(self):
@@ -201,22 +199,21 @@ class Flywheel:
     def enable(self):
         self.enabled = True
 
-    @feedback
     def isReady(self):
         return (
-            self._velocity - FLYWHEEL_SPEED_TOLERANCE
+            self._velocity - FLYWHEEL_VELOCITY_TOLERANCE
             <= self.getVelocity()
-            <= self._velocity + FLYWHEEL_SPEED_TOLERANCE
+            <= self._velocity + FLYWHEEL_VELOCITY_TOLERANCE
         )
 
     # read current encoder velocity
-    @feedback
+    @feedback(key='Velocity')
     def getVelocity(self):
         return self.flywheel_motor.getSelectedSensorVelocity(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback
+    @feedback(key='Percent')
     def getSpeed(self):
         return self.flywheel_motor.get()
 
@@ -245,16 +242,16 @@ class Flywheel:
         self._velocity = speed
 
     def incrementSpeed(self):
-        self._velocity += FLYWHEEL_INCREMENT
+        self._velocityTarget += FLYWHEEL_INCREMENT
 
     def decrementSpeed(self):
-        self._velocity -= FLYWHEEL_INCREMENT
+        self._velocityTarget -= FLYWHEEL_INCREMENT
 
     def toggleVelocityTarget(self):
         # True = 1, so if expression is true, second element
         # in list is selected.
-        self._velocityTarget = [FLYWHEEL_SPEED_GOAL, FLYWHEEL_SPEED_LOB][
-            self._velocityTarget == FLYWHEEL_SPEED_GOAL
+        self._velocityTarget = [FLYWHEEL_VELOCITY_PORTAL, FLYWHEEL_VELOCITY_LOB][
+            self._velocityTarget == FLYWHEEL_VELOCITY_PORTAL
         ]
 
     def execute(self):
@@ -280,7 +277,7 @@ class Intake:
     def enable(self):
         self.enabled = True
 
-    @feedback
+    @feedback(key='Percent')
     def get_speed(self):
         return self.intake_motor.get()
 
@@ -318,15 +315,21 @@ class Loader:
         the motor to run even without any balls in the system'''
         self.override = True
 
-    @feedback
+    @feedback(key='Percent')
     def get_speed(self):
         return self.loader_motor.get()
 
-    @feedback
+    @feedback(key='LowerSwitchEnabled')
+    def get_lower_switch_str(self):
+        return str(self.get_lower_switch())
+
     def get_lower_switch(self):
         return self.loader_motor.isRevLimitSwitchClosed()
 
     @feedback
+    def get_upper_switch_str(self):
+        return str(self.get_upper_switch())
+
     def get_upper_switch(self):
         return self.loader_motor.isFwdLimitSwitchClosed()
 
@@ -340,7 +343,6 @@ class Loader:
     def execute(self):
         if self.enabled and self.get_lower_switch() and not self.get_upper_switch():
             self.loader_motor.set(ControlMode.PercentOutput, self.loader_command)
-        elif self.
         elif self.override:
             self.loader_motor.set(ControlMode.PercentOutput, self.loader_command)
         else:
@@ -354,7 +356,6 @@ class FROGShooter(StateMachine):
     loader: Loader
     conveyor: Conveyor
     intake: Intake
-
 
     def fire(self):
         # start the state machine with the @state that's "first=True"

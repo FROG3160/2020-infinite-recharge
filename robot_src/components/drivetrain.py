@@ -10,6 +10,7 @@ from ctre import (
 from wpilib.drive import DifferentialDrive
 import math
 from .common import TalonPID, limit
+from navx import AHRS
 
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
@@ -48,20 +49,6 @@ MM_ACCELERATION = 10000  # 4000
 MM_CRUISE_VELOCITY = 10000  # 8000
 
 
-class FROGGyro(PigeonIMU):
-
-    # create a NetworkTables value and set it to 0
-    heading = tunable(0)
-
-    def __init__(self, id_or_srx):
-        super().__init__(id_or_srx)
-
-    def getCompassHeading(self):
-        # update tunable from superclass and return it for use
-        self.heading = super().getCompassHeading()
-        return self.heading
-
-
 class FROGDrive(DifferentialDrive):
 
     # drive motors (channels defined in robot.py)
@@ -85,7 +72,16 @@ class FROGDrive(DifferentialDrive):
         # This needs to be in place to prevent the __init__ of
         # DifferentialDrive from running until we have all components
         # available.
-        pass
+        self.gyro = AHRS.create_spi()
+        self.gyro.reset()
+
+    @feedback(key='Heading')
+    def getHeading(self):
+        # returns gyro heading +180 to -180 degrees
+        return self.gyro.getYaw()
+
+    def resetGyro(self):
+        self.gyro.reset()
 
     def init_position_mode(self):
         self.set_PID(PositionPID)
@@ -101,19 +97,19 @@ class FROGDrive(DifferentialDrive):
         # initializes attributes for tuning PID with SmartDashboard
         pass
 
-    @feedback
+    @feedback(key='LeftPosition')
     def get_current_left_pos(self):
         return self.get_encoder_position(self.leftMaster)
 
-    @feedback
+    @feedback(key="RightPosition")
     def get_current_right_pos(self):
         return self.get_encoder_position(self.rightMaster)
 
-    @feedback
+    @feedback(key='LeftVelocity')
     def get_current_left_vel(self):
         return self.get_encoder_velocity(self.leftMaster)
 
-    @feedback
+    @feedback(key='RightVelocity')
     def get_current_right_vel(self):
         return self.get_encoder_velocity(self.rightMaster)
 

@@ -2,7 +2,7 @@ import wpilib
 from wpilib.interfaces import GenericHID
 from .common import remap
 from networktables import NetworkTables
-from magicbot import tunable, feedback
+from magicbot import feedback
 
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
@@ -155,7 +155,7 @@ class FROGXboxDriver(wpilib.XboxController):
         self.timer = wpilib.Timer
         self.nt = NetworkTables.getTable("FROGXboxDriver_values")
 
-    @feedback
+    @feedback(key='Speed')
     def get_speed(self):
         # Dampens the -1 to 1 values of the joystick to provide a smoothed acceleration
         forward = self.getTriggerAxis(RIGHTHAND)
@@ -164,7 +164,7 @@ class FROGXboxDriver(wpilib.XboxController):
         speed = speed ** 3 / self.SPEED_DIVISOR if abs(speed) > self.DEADBAND else 0
         return speed
 
-    @feedback
+    @feedback(key='Rotation')
     def get_rotation(self):
         return (
             self.getX(LEFTHAND) / self.ROTATION_DIVISOR
@@ -203,7 +203,7 @@ class FROGXboxGunner(wpilib.XboxController):
         self.timer = wpilib.Timer
         self.nt = NetworkTables.getTable("FROGXboxGunner_values")
 
-    @feedback
+    @feedback(key='Elevation')
     def get_elevation(self):
         return (
             self.getY(RIGHTHAND) / self.ELEVATION_DIVISOR
@@ -211,7 +211,7 @@ class FROGXboxGunner(wpilib.XboxController):
             else 0
         )
 
-    @feedback
+    @feedback(key='Rotation')
     def get_rotation(self):
         return (
             self.getX(LEFTHAND) / self.ROTATION_DIVISOR
