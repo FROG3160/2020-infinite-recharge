@@ -19,8 +19,6 @@ POWERPORT_TABLE = TARGETING_TABLE + '/PowerPort'
 POWERCELL_TABLE = TARGETING_TABLE + '/PowerCell'
 CONTROL_TABLE = TARGETING_TABLE + '/control'
 
-INVALID_VALUE = -999
-
 HATCH_TARGET = 0
 CELL_TARGET = 1
 
@@ -106,8 +104,8 @@ def main():
     cs = CameraServer.getInstance()
     cs.enableLogging()
 
-    usb2 = cs.startAutomaticCapture(dev=1, name="PowerPort_Cam")
-    usb1 = cs.startAutomaticCapture(dev=0, name="PowerCell_Cam")
+    usb1 = cs.startAutomaticCapture(dev=0, name="PowerPort_Cam")
+    usb2 = cs.startAutomaticCapture(dev=1, name="PowerCell_Cam")
 
     cvSink_PowerPort = cs.getVideo(name="PowerPort_Cam")
     cvSink_PowerCell = cs.getVideo(name="PowerCell_Cam")
@@ -122,21 +120,23 @@ def main():
     powerport_pipeline = PortGripPipeline()
     powercell_pipeline = CellGripPipeline()
 
+    print('Setting Camera Exposure')
     # Changes camera settings for the object we're tracking
-    usb1.setExposureManual(36)  # range is 0-100
-    usb1.setBrightness(0)  # range is 0-100
-    usb1.setWhiteBalanceManual(2800)  # range is 1700-15,000
-    usb1.getProperty("saturation").set(99)
-    usb1.getProperty("contrast").set(100)
-    usb1.getProperty("sharpness").set(0)
-
-    # Changes camera settings for the object we're tracking
-    usb2.setExposureManual(13)  # range is 0-100
-    usb2.setBrightness(17)  # range is 0-100
-    usb2.setWhiteBalanceManual(7674)  # range is 1700-15,000
-    usb2.getProperty("saturation").set(100)
+    usb2.setExposureManual(36)  # range is 0-100
+    usb2.setBrightness(0)  # range is 0-100
+    usb2.setWhiteBalanceManual(2800)  # range is 1700-15,000
+    usb2.getProperty("saturation").set(99)
     usb2.getProperty("contrast").set(100)
     usb2.getProperty("sharpness").set(0)
+
+    print('Doing it agian')
+    # Changes camera settings for the object we're tracking
+    usb1.setExposureManual(23)  # range is 0-100
+    usb1.setBrightness(41)  # range is 0-100
+    usb1.setWhiteBalanceManual(10000)  # range is 1700-15,000
+    usb1.getProperty("saturation").set(100)
+    usb1.getProperty("contrast").set(100)
+    usb1.getProperty("sharpness").set(0)
 
     print('Waiting for networktables variable...')
     while True:
@@ -152,7 +152,7 @@ def main():
 
         # if have_frame
         if have_frame_PowerPort:
-            # print('Targeting Port')
+            print('Found Targeting Port')
             PowerPort_x, PowerPort_y = getTargetNearCenter(
                 powerport_pipeline, frame_PowerPort
             )
@@ -203,8 +203,8 @@ def main():
                 cv2.LINE_AA,
             )
         else:
-            powerport_table.putNumber('center_x', INVALID_VALUE)
-            powerport_table.putNumber('center_y', INVALID_VALUE)
+            powerport_table.putNumber('center_x', -999)
+            powerport_table.putNumber('center_y', -999)
 
         if PowerCell_x and PowerCell_y:
             # print('Coordinates: {}'.format((xC, yC)))
@@ -223,8 +223,8 @@ def main():
             )
         else:
 
-            powercell_table.putNumber('center_x', INVALID_VALUE)
-            powercell_table.putNumber('center_y', INVALID_VALUE)
+            powercell_table.putNumber('center_x', -999)
+            powercell_table.putNumber('center_y', -999)
 
         outputStream_PowerPort.putFrame(img_PowerPort)
         outputStream_PowerCell.putFrame(img_PowerCell)
