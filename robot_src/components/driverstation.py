@@ -184,6 +184,22 @@ class FROGXboxDriver(wpilib.XboxController):
         self.update_nt('button_{}'.format(num), val)
         return val
 
+    def get_debounced_POV(self):
+        """Returns the value of the joystick button. If the button is held down, then
+        True will only be returned once every ``debounce_period`` seconds"""
+        val = -1
+        now = self.timer.getFPGATimestamp()
+        pov = self.getPOV()
+        if pov > -1:
+            if (now - self.button_latest.get('POV', 0)) > self.DEBOUNCE_PERIOD:
+                self.button_latest['POV'] = now
+                val = pov
+                self.setRumble(GenericHID.RumbleType.kRightRumble, 1)
+            else:
+                self.setRumble(GenericHID.RumbleType.kRightRumble, 0)
+        self.update_nt('button_pov', val)
+        return val
+
     def update_nt(self, key, value):
         """update network tables with drive telemetry"""
         self.nt.putNumber(key, value)
@@ -199,9 +215,9 @@ class FROGXboxGunner(wpilib.XboxController):
 
         super().__init__(channel)
         self.button_latest = {}
-        self.pov_latest = -1
+        self.pov_latest = 0
         self.timer = wpilib.Timer
-        self.nt = NetworkTables.getTable("FROGXboxGunner_values")
+        self.nt = NetworkTables.getTable("components/driverstation/gunner_stick")
 
     @feedback(key='Elevation')
     def get_elevation(self):
@@ -238,13 +254,13 @@ class FROGXboxGunner(wpilib.XboxController):
         now = self.timer.getFPGATimestamp()
         pov = self.getPOV()
         if pov > -1:
-            if (now - self.pov_latest) > self.DEBOUNCE_PERIOD:
-                self.pov_latest = now
+            if (now - self.button_latest.get('POV', 0)) > self.DEBOUNCE_PERIOD:
+                self.button_latest['POV'] = now
                 val = pov
                 self.setRumble(GenericHID.RumbleType.kRightRumble, 1)
             else:
                 self.setRumble(GenericHID.RumbleType.kRightRumble, 0)
-        self.update_nt('pov', val)
+        self.update_nt('button_pov', val)
         return val
 
     def update_nt(self, key, value):
