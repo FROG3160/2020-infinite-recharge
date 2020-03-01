@@ -3,7 +3,7 @@
 import magicbot
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX
-from components.drivetrain import FROGDrive
+from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
 from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxGunner
 from components.shooter import (
     FROGShooter,
@@ -28,9 +28,9 @@ class FROGbot(magicbot.MagicRobot):
     azimuth: Azimuth
     elevation: Elevation
     flywheel: Flywheel
-    loader: Loader
-    conveyor: Conveyor
-    intake: Intake
+    # loader: Loader
+    # conveyor: Conveyor
+    # intake: Intake
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -40,9 +40,9 @@ class FROGbot(magicbot.MagicRobot):
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
 
-        self.intake_motor = WPI_TalonSRX(21)
-        self.conveyor_motor = WPI_TalonSRX(22)
-        self.loader_motor = WPI_TalonSRX(23)
+        # self.intake_motor = WPI_TalonSRX(21)
+        # self.conveyor_motor = WPI_TalonSRX(22)
+        # self.loader_motor = WPI_TalonSRX(23)
 
         self.azimuth_motor = WPI_TalonSRX(31)
         self.elevation_motor = WPI_TalonSRX(32)
@@ -50,8 +50,8 @@ class FROGbot(magicbot.MagicRobot):
 
         self.controlwheel_motor = WPI_TalonSRX(41)
 
-        self.liftLeft = WPI_TalonFX(51)
-        self.liftRight = WPI_TalonFX(52)
+        # self.liftLeft = WPI_TalonFX(51)
+        # self.liftRight = WPI_TalonFX(52)
 
         # controls
         self.drive_stick = FROGXboxDriver(0)
@@ -67,24 +67,33 @@ class FROGbot(magicbot.MagicRobot):
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
 
-        if self.drive_stick.get_debounced_button(11) == True:
-            self.chassis.toggle_control_mode()
         if self.drive_stick.getStickButtonPressed(wpilib.XboxController.Hand.kLeftHand):
             self.chassis.resetGyro()
+        if self.drive_stick.getBumperPressed(wpilib.XboxController.Hand.kRightHand):
+            self.chassis.toggle_control_mode()
 
-        if self.drive_stick.getPOV() == 0:
-            self.chassis.set_position(36)  # tell it to roll forward 36 inches
-        if self.drive_stick.getPOV() == 180:
-            self.chassis.set_position(-36)  # tell it to roll backward 36 inches
-        # feed joystick to the drivetrain
-        self.chassis.set_velocity(
-            self.drive_stick.get_speed(), self.drive_stick.get_rotation()
-        )
+        if self.chassis.control_mode == POSITION_MODE:
+            pov = self.drive_stick.get_debounced_POV()
+            if pov == 0:
+                self.chassis.set_position(36)  # tell it to roll forward 36 inches
+            elif pov == 180:
+                self.chassis.set_position(-36)  # tell it to roll backward 36 inches
+            elif pov == 90:
+                self.chassis.set_rotate(90)
+            elif pov == 270:
+                self.chassis.set_rotate(-90)
+        else:
+            self.chassis.set_velocity(
+                self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+            )
 
-        self.azimuth.setSpeed(self.gunner_stick.get_rotation())
-        self.azimuth.enable()
+        if self.gunner_stick.getTriggerAxis(wpilib.XboxController.Hand.kRightHand) == 1:
+            self.shooter.fire()
+        # self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+        # self.azimuth.enable()
         self.elevation.set_speed(self.gunner_stick.get_elevation())
         self.elevation.enable()
+
         if self.gunner_stick.get_debounced_POV() == 0:
             self.flywheel.incrementSpeed()
             self.flywheel.enable()
@@ -93,6 +102,7 @@ class FROGbot(magicbot.MagicRobot):
             self.flywheel.enable()
         if self.gunner_stick.getBButtonPressed():
             self.flywheel.disable()
+            self.azimuth.disable()
 
     def testInit(self):
 
