@@ -32,7 +32,7 @@ FLYWHEEL_VELOCITY_TOLERANCE = 500
 # TODO: change over to Position Mode, or MM?
 ELEVATION_MODE = ControlMode.PercentOutput
 ELEVATION_LOW = 0
-ELEVATION_HIGH = 0
+ELEVATION_HIGH = 4500
 
 AZIMUTH_MODE = ControlMode.PercentOutput
 AZIMUTH_CENTER = 2700
@@ -86,6 +86,7 @@ class Azimuth:
         self.azimuth_motor.setSensorPhase(False)
         self.azimuth_motor.setInverted(False)
         self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
+        # we start with the turret centered
         self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
         self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
         self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
@@ -175,6 +176,12 @@ class Elevation:
         self.elevation_motor.setSensorPhase(False)
         self.elevation_motor.setInverted(False)
         self.elevation_motor.setNeutralMode(NeutralMode.Brake)
+        # high angle.  We start with the linear screw all the way down
+        self.elevation_motor.setSelectedSensorPosition(ELEVATION_HIGH, 0, 0)
+        self.elevation_motor.configForwardSoftLimitThreshold(ELEVATION_HIGH - 100, 0)
+        self.elevation_motor.configReverseSoftLimitThreshold(ELEVATION_LOW + 100, 0)
+        self.elevation_motor.configForwardSoftLimitEnable(True, 0)
+        self.elevation_motor.configReverseSoftLimitEnable(True, 0)
 
     def set_position(self, value):
         # move to the given position
