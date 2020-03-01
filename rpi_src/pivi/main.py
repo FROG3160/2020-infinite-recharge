@@ -7,12 +7,19 @@ import numpy as np
 import logging
 from cscore import CameraServer, UsbCamera
 from networktables import NetworkTables
-from port_tracker_lines import PortGripPipeline
-from cell_tracker import CellGripPipeline
-from portal import Portal, Line
+from powerport_tracker import PortGripPipeline
+from powercell_tracker import CellGripPipeline
+
+# from portal import Portal, Line
 
 ROBORIO_IP = '10.31.60.2'
-TARGETING_TABLE = "target"
+TARGETING_TABLE = "targets"
+
+POWERPORT_TABLE = TARGETING_TABLE + '/PowerPort'
+POWERCELL_TABLE = TARGETING_TABLE + '/PowerCell'
+CONTROL_TABLE = TARGETING_TABLE + '/control'
+
+INVALID_VALUE = -999
 
 HATCH_TARGET = 0
 CELL_TARGET = 1
@@ -23,10 +30,10 @@ V_RES = 240
 H_CENTER = H_RES / 2
 V_CENTER = V_RES / 2
 
-portal = Portal()
+# portal = Portal()
 
 
-class Target:
+class ContourTarget:
     def __init__(self, x, y, w, h):
         # X and Y are coordinates of the top-left corner of the bounding box
         self.x = x
@@ -35,10 +42,10 @@ class Target:
         self.h = h
         print('TARGET: {} {} {} {}'.format(x, y, w, h))
 
-    def getXCenter(self):
+    def getCenterX(self):
         return self.x + self.w / 2
 
-    def getYCenter(self):
+    def getCenterY(self):
         return self.y + self.h / 2
 
     def getArea(self):
@@ -48,67 +55,10 @@ class Target:
         return abs(self.x - H_CENTER) < abs(other.x - H_CENTER)
 
 
-def getPortal(pipeline):
-    lines = pipeline.filter_lines_output
-    output_lines = []
-
-    if lines:  # and (pipeline = cell_pipeline):
-        for line in lines:
-            output_lines.append(Line(line.x1, line.y1, line.x2, line.y2))
-    portal.importLines(output_lines)
-    portal_center = portal.getCenter()
-    if portal_center:
-        print('Portal Center: {},{}'.format(portal_center[0], portal_center[1]))
-        print(
-            'Inner Y, left: {}, right: {}'.format(
-                portal.left_inner_y, portal.right_inner_y
-            )
-        )
-        print('Y DIFF: {}'.format(portal.left_inner_y - portal.right_inner_y))
-
-    # print('Found Portal--->')
-    # for line in lines:
-    # if abs(line.y1 - line.y2) > 10:
-    # print("Line: ",
-    # ((line.x1, line.y1),
-    # (line.x2, line.y2),
-    # 'Height: {}'.format(line.y1-line.y2),
-    # 'Width: {}'.format(line.x1-line.x2),
-    # line.length(), line.angle()
-    # )
-    # )
-    # output_lines.append([line.x1, line.x2, line.y1, line.y2, line.length(), line.angle()])
-
-    return portal_center
-
-
-def getPortalBottom(pipeline):
-
-    lines = pipeline.filter_lines_output
-    found_lines = []
-    if lines:
-        for line in lines:
-            if line.x1 > line.x2:
-                leftX = line.x2
-                leftY = line.y2
-                rightX = line.x1
-                rightY = line.y1
-            else:
-                leftX = line.x1
-                leftY = line.y1
-                rightX = line.x2
-                rightY = line.y2
-            xVector = rightX - leftX
-            found_lines.append((xVector, line.angle(), line.length(), rightY - leftY))
-    print(found_lines)
-    return sorted(found_lines)[-1]
-
-
-def getTargets(pipeline):
+def processTargetsFromContours(pipeline):
     """
-    Performs extra processing on the pipeline's outputs and publishes data to NetworkTables.
-    :param pipeline: the pipeline that just processed an image
-    :return: None
+    Creates target objects from contours found by pipeline.
+    :return: list of targets
     """
     # print('Using pipeline: {}'.format(pipeline))
     targets = []
@@ -118,25 +68,25 @@ def getTargets(pipeline):
         for contour in pipeline.filter_contours_output:
             # print("Contour: ", cv2.boundingRect(contour))
             # appends a tuple of (x, y, w, h)
-            target = Target(*cv2.boundingRect(contour))
+            target = ContourTarget(*cv2.boundingRect(contour))
             targets.append(target)
 
     return targets
 
 
-def getTarget(pipeline, frame):
+def getTargetNearCenter(pipeline, frame):
     # get an array of tuples with (x, y, w, h)
     pipeline.process(frame)
-    targets = getTargets(pipeline)
+    targets = processTargetsFromContours(pipeline)
 
     if len(targets) > 0:
         # sort the targets by the distance from center
         # targets = sorted([(abs(t.getXCenter()-H_CENTER), t) for t in targets])
         sorted(targets)
-        # now get the center coordinats from the two closest
+        # now get the center coordinates from the two closest
         t1 = targets[0]
 
-        return (t1.getXCenter(), t1.getYCenter())
+        return (t1.getCenterX(), t1.getCenterY())
     else:
         return (None, None)
 
@@ -148,27 +98,29 @@ def main():
 
     NetworkTables.initialize(server=ROBORIO_IP)
 
-    target_table = NetworkTables.getTable(TARGETING_TABLE)
+    powerport_table = NetworkTables.getTable(POWERPORT_TABLE)
+    powercell_table = NetworkTables.getTable(POWERCELL_TABLE)
+    targeting_control = NetworkTables.getTable(CONTROL_TABLE)
 
     print('Creating video capture')
     cs = CameraServer.getInstance()
     cs.enableLogging()
 
-    usb2 = cs.startAutomaticCapture(dev=1, name="Port_Cam")
-    usb1 = cs.startAutomaticCapture(dev=0, name="Cell_Cam")
+    usb2 = cs.startAutomaticCapture(dev=1, name="PowerPort_Cam")
+    usb1 = cs.startAutomaticCapture(dev=0, name="PowerCell_Cam")
 
-    cvSink_P = cs.getVideo(name="Port_Cam")
-    cvSink_C = cs.getVideo(name="Cell_Cam")
+    cvSink_PowerPort = cs.getVideo(name="PowerPort_Cam")
+    cvSink_PowerCell = cs.getVideo(name="PowerCell_Cam")
 
-    outputStream_P = cs.putVideo("Port", H_RES, V_RES)
-    outputStream_C = cs.putVideo("Power_Cell", H_RES, V_RES)
-    img_P = np.zeros(shape=(H_RES, V_RES, 3), dtype=np.uint8)
-    img_C = np.zeros(shape=(H_RES, V_RES, 3), dtype=np.uint8)
+    outputStream_PowerPort = cs.putVideo("PowerPort", H_RES, V_RES)
+    outputStream_PowerCell = cs.putVideo("PowerCell", H_RES, V_RES)
+    img_PowerPort = np.zeros(shape=(H_RES, V_RES, 3), dtype=np.uint8)
+    img_PowerCell = np.zeros(shape=(H_RES, V_RES, 3), dtype=np.uint8)
 
     print('Creating pipelines')
 
-    port_pipeline = PortGripPipeline()
-    cell_pipeline = CellGripPipeline()
+    powerport_pipeline = PortGripPipeline()
+    powercell_pipeline = CellGripPipeline()
 
     # Changes camera settings for the object we're tracking
     usb1.setExposureManual(36)  # range is 0-100
@@ -191,66 +143,59 @@ def main():
         # Was an unused variable
         # target_object = target_table.getNumber('object', 1)
 
-        have_frame_P, frame_P = cvSink_P.grabFrame(img_P)
-        have_frame_C, frame_C = cvSink_C.grabFrame(img_C)
+        have_frame_PowerPort, frame_PowerPort = cvSink_PowerPort.grabFrame(
+            img_PowerPort
+        )
+        have_frame_PowerCell, frame_PowerCell = cvSink_PowerCell.grabFrame(
+            img_PowerCell
+        )
 
         # if have_frame
-        if have_frame_P:
+        if have_frame_PowerPort:
             # print('Targeting Port')
-            xP, yP = getTarget(port_pipeline, frame_P)
-            # portal_center = getPortal(port_pipeline)
-            linedata = getPortalBottom(port_pipeline)
-
+            PowerPort_x, PowerPort_y = getTargetNearCenter(
+                powerport_pipeline, frame_PowerPort
+            )
         else:
+            PowerPort_x = None
+            PowerPort_y = None
 
-            xP = None
-            yP = None
-            # portal_center = None
-            linedata = None
-
-        if have_frame_C:
+        if have_frame_PowerCell:
             # print('Targeting Cell')
-            xC, yC = getTarget(cell_pipeline, frame_C)
+            PowerCell_x, PowerCell_y = getTargetNearCenter(
+                powercell_pipeline, frame_PowerCell
+            )
         else:
-            xC = None
-            yC = None
+            PowerCell_x = None
+            PowerCell_y = None
 
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
-        time_P, img_P = cvSink_P.grabFrame(img_P)
-        time_C, img_C = cvSink_C.grabFrame(img_C)
+        time_PowerPort, img_PowerPort = cvSink_PowerPort.grabFrame(img_PowerPort)
+        time_PowerCell, img_PowerCell = cvSink_PowerCell.grabFrame(img_PowerCell)
 
-        if time_P == 0:
+        if time_PowerPort == 0:
             # Send the output the error.
-            outputStream_P.notifyError(cvSink_P.getError())
+            outputStream_PowerPort.notifyError(cvSink_PowerPort.getError())
             # skip the rest of the current iteration
             continue
 
-        if time_C == 0:
+        if time_PowerCell == 0:
             # Send the output the error.
-            outputStream_C.notifyError(cvSink_C.getError())
+            outputStream_PowerCell.notifyError(cvSink_PowerCell.getError())
             # skip the rest of the current iteration
             continue
 
-        if linedata:
-            print(
-                'xVector: {}, Angle: {}, Length: {}, yDiff: {}'.format(
-                    linedata[0], linedata[1], linedata[2], linedata[3]
-                )
-            )
-        # if portal_center:
-        # font = cv2.FONT_HERSHEY_SIMPLEX
-        # cv2.putText(img_P, 'V', (int(portal_center[0] / 2), (int(portal_center[1] / 2))), font, .4, (255, 255, 255), 1, cv2.LINE_AA)
-        if xP and yP:
+        if PowerPort_x and PowerPort_y:
             # print('Coordinates: {}'.format((xP, yP)))
-            target_table.putNumber('Port_x', xP)
-            target_table.putNumber('Port_y', yP)
+            powerport_table.putNumber('center_x', PowerPort_x)
+            powerport_table.putNumber('center_y', PowerPort_y)
 
             font = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(
-                img_P,
+                img_PowerPort,
                 '+',
-                (int(xP / 2 - 5), (int(yP / 2))),
+                (int(PowerPort_x / 2 - 5), (int(PowerPort_y / 2))),
                 font,
                 0.4,
                 (255, 255, 255),
@@ -258,18 +203,18 @@ def main():
                 cv2.LINE_AA,
             )
         else:
-            target_table.putNumber('Port_x', -999)
-            target_table.putNumber('Port_y', -999)
+            powerport_table.putNumber('center_x', INVALID_VALUE)
+            powerport_table.putNumber('center_y', INVALID_VALUE)
 
-        if xC and yC:
+        if PowerCell_x and PowerCell_y:
             # print('Coordinates: {}'.format((xC, yC)))
-            target_table.putNumber('Cell_x', xC)
-            target_table.putNumber('Cell_y', yC)
+            powercell_table.putNumber('center_x', PowerCell_x)
+            powercell_table.putNumber('center_y', PowerCell_y)
             font = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(
-                img_C,
+                img_PowerCell,
                 '+',
-                (int(xC / 2 - 5), (int(yC / 2))),
+                (int(PowerCell_x / 2 - 5), (int(PowerCell_y / 2))),
                 font,
                 0.4,
                 (255, 255, 255),
@@ -278,15 +223,11 @@ def main():
             )
         else:
 
-            target_table.putNumber('Cell_x', -999)
-            target_table.putNumber('Cell_y', -999)
+            powercell_table.putNumber('center_x', INVALID_VALUE)
+            powercell_table.putNumber('center_y', INVALID_VALUE)
 
-        # if lines_targeted:
-        #    target_table.putNumberArray('Lines', lines_targeted)
-
-        # Give the output stream a new image to display
-        outputStream_P.putFrame(img_P)
-        outputStream_C.putFrame(img_C)
+        outputStream_PowerPort.putFrame(img_PowerPort)
+        outputStream_PowerCell.putFrame(img_PowerCell)
 
     print('Capture closed')
 
