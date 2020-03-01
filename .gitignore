@@ -139,4 +139,5 @@ dmypy.json
 .vscode/         
 imgui.ini         
 opkg_cache/         
-pip_cache/         
+pip_cache/    
+.deploy_cfg
