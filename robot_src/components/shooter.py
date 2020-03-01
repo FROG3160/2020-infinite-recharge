@@ -9,6 +9,7 @@ from ctre import (
 )
 from .common import TalonPID, limit
 from magicbot import tunable, feedback, StateMachine, state, timed_state
+from .vision import FROGVision
 
 AZIMUTH_PID = TalonPID(0, f=0.4)
 ELEVATION_PID = TalonPID(0, f=0.4)
@@ -37,7 +38,7 @@ AZIMUTH_MODE = ControlMode.PercentOutput
 AZIMUTH_CENTER = 2700
 AZIMUTH_LIMIT_RIGHT = 5400
 AZIMUTH_LIMIT_LEFT = 0
-
+AZIMUTH_PIXEL_TOLERANCE = 5
 
 INTAKE_SPEED = 0.2
 LOWER_CONVEYOR_SPEED = 0.2
@@ -52,12 +53,19 @@ class Azimuth:
 
     def __init__(self):
         self.enabled = False
+        self.vision = FROGVision()
 
     def disable(self):
         self.enabled = False
 
     def enable(self):
         self.enabled = True
+
+    def isReady(self):
+        if abs(160 - self.vision.getTargetX()) < AZIMUTH_PIXEL_TOLERANCE:
+            return True
+        else:
+            return False
 
     # read current encoder position
     @feedback(key='Position')
@@ -95,6 +103,7 @@ class Azimuth:
 
     def execute(self):
         if self.enabled:
+            self.azimuth_command = self.vision.getTargetRotation()
             self.azimuth_motor.set(self.azimuth_mode, self.azimuth_command)
         else:
             self.azimuth_motor.set(0)
@@ -190,8 +199,17 @@ class Flywheel:
     def __init__(self):
         self.enabled = False
         self._controlMode = FLYWHEEL_MODE
-        self._velocityTarget = FLYWHEEL_VELOCITY_PORTAL
-        self._velocity = tunable(0)
+        # defines the two velocities we'll use for our FeedbackDevice
+        self._velocityModes = ['PORTAL', 'LOB']
+        # the initial velocity we'll use.
+        self._velocityMode = 'PORTAL'
+
+        self._velocity = 0
+
+        # sets the values for the two defined velocities
+        self._velocities = {}
+        self._velocities['LOB'] = FLYWHEEL_VELOCITY_LOB
+        self._velocities['PORTAL'] = FLYWHEEL_VELOCITY_PORTAL
 
     def disable(self):
         self.enabled = False
@@ -213,7 +231,8 @@ class Flywheel:
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback(key='Percent')
+    # read current controller percent vBus
+    @feedback(key='PercentVBus')
     def getSpeed(self):
         return self.flywheel_motor.get()
 
@@ -229,8 +248,8 @@ class Flywheel:
         self.flywheel_motor.setNeutralMode(NeutralMode.Coast)
         self._PID.configTalon(self.flywheel_motor)
 
-    def setVelocity(self, vel):
-        # run Flywheel at the given velocity
+    def accelerate(self, vel):
+        # accelerate Flywheel to the given velocity
         self._velocity = self._velocity + limit(
             (vel * FLYWHEEL_MAX_VEL - self._velocity),
             FLYWHEEL_MAX_DECEL,
@@ -241,23 +260,24 @@ class Flywheel:
         self._controlMode = ControlMode.PercentOutput
         self._velocity = speed
 
+    # adjust current velocity by defined increment
     def incrementSpeed(self):
-        self._velocityTarget += FLYWHEEL_INCREMENT
+        self._velocities[self._velocityMode] += FLYWHEEL_INCREMENT
 
     def decrementSpeed(self):
-        self._velocityTarget -= FLYWHEEL_INCREMENT
+        self._velocities[self._velocityMode] -= FLYWHEEL_INCREMENT
 
-    def toggleVelocityTarget(self):
+    # switch between defined velocities
+    def toggleVelocityMode(self):
         # True = 1, so if expression is true, second element
         # in list is selected.
-        self._velocityTarget = [FLYWHEEL_VELOCITY_PORTAL, FLYWHEEL_VELOCITY_LOB][
-            self._velocityTarget == FLYWHEEL_VELOCITY_PORTAL
-        ]
+        self._velocityMode = self._velocityModes[self._velocityMode == 'PORTAL']
+        self._velocityTarget = self._velocities[self._velocityMode]
 
     def execute(self):
         if self.enabled:
-            if self._velocity != self._velocityTarget:
-                self.setVelocity(self._velocityTarget)
+            if self._velocity != self._velocities[self._velocityMode]:
+                self.accelerate(self._velocities[self._velocityMode])
             self.flywheel_motor.set(self._controlMode, self._velocity)
         else:
             self.flywheel_motor.set(0)
@@ -353,19 +373,26 @@ class FROGShooter(StateMachine):
     azimuth: Azimuth
     elevation: Elevation
     flywheel: Flywheel
-    loader: Loader
-    conveyor: Conveyor
-    intake: Intake
+    # loader: Loader
+    # conveyor: Conveyor
+    # intake: Intake
 
     def fire(self):
         # start the state machine with the @state that's "first=True"
         self.engage()
 
     @state(first=True)
+    def findTarget(self):
+        self.azimuth.enable()
+        if self.azimuth.vision.getTargetX():
+            self.next_state_now('prepareToFire')
+
+    @state()
     def prepareToFire(self):
         self.flywheel.enable()
+        self.azimuth.enable()
 
-        if self.flywheel.isReady():
+        if self.flywheel.isReady() and self.azimuth.isReady():
             self.next_state_now('firing')
 
     @timed_state(duration=1, must_finish=True)
