@@ -26,6 +26,8 @@ class FROGVision:
     CAM_RES_V = 240
     FOV_RAD_H = 0.896376
     FOV_RAD_V = 0.74858
+    ENCODER_PER_H_FOV = 1180
+    ENCODER_PER_PIXEL = ENCODER_PER_H_FOV / CAM_RES_H
 
     TARGET_HEIGHT = 24
     CAMERA_HEIGHT = 8
@@ -99,3 +101,12 @@ class FROGVision:
         # )
         else:
             return 0
+
+    @feedback(key='PowerPort_position')
+    def getTargetPosition(self):
+
+        target_x = self.getTargetX()
+
+        if target_x:
+
+            return (target_x - self.FOV_CENTER_H) * ENCODER_PER_PIXEL
