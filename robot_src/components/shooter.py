@@ -2,6 +2,7 @@
 from ctre import (
     WPI_TalonFX,
     WPI_TalonSRX,
+    WPI_VictorSPX,
     FeedbackDevice,
     ControlMode,
     NeutralMode,
@@ -11,9 +12,9 @@ from .common import TalonPID, limit
 from magicbot import tunable, feedback, StateMachine, state, timed_state
 from .vision import FROGVision
 
-AZIMUTH_PID = TalonPID(0, f=0.4)
-ELEVATION_PID = TalonPID(0, f=0.4)
-FLYWHEEL_PID = TalonPID(0, f=0.05)
+AZIMUTH_PID = TalonPID(0, p=32)
+ELEVATION_PID = TalonPID(0, p=32)
+FLYWHEEL_PID = TalonPID(0, p=0.4, f=0.0515)
 
 NEVEREST_CPR = 7 * 60  # motor ticks * gear reduction
 FALCON_CPR = 2048
@@ -24,7 +25,7 @@ FLYWHEEL_MAX_ACCEL = (
     FLYWHEEL_MAX_VEL / 50
 )  # sampled 50 times a second makes this MAX ACCEL/sec
 FLYWHEEL_MAX_DECEL = -FLYWHEEL_MAX_ACCEL
-FLYWHEEL_INCREMENT = 250  # increment for manually adjusting speed
+FLYWHEEL_INCREMENT = 500  # increment for manually adjusting speed
 FLYWHEEL_VELOCITY_PORTAL = 14000
 FLYWHEEL_VELOCITY_LOB = 7000
 FLYWHEEL_VELOCITY_TOLERANCE = 500
@@ -39,6 +40,9 @@ AZIMUTH_CENTER = 2700
 AZIMUTH_LIMIT_RIGHT = 5400
 AZIMUTH_LIMIT_LEFT = 0
 AZIMUTH_PIXEL_TOLERANCE = 5
+AZIMUTH_MODE_MANUAL = 0
+AZIMUTH_MODE_AUTOMATIC = 1
+# TODO: FIGURE encoder ticks per pixel, or per angle
 
 INTAKE_SPEED = 0.2
 LOWER_CONVEYOR_SPEED = 0.2
@@ -48,12 +52,13 @@ UPPER_CONVEYOR_SPEED = 0.2
 class Azimuth:
     _PID = AZIMUTH_PID
     azimuth_motor: WPI_TalonSRX
-    azimuth_mode = AZIMUTH_MODE
+    azimuth_mode = AZIMUTH_MODE_AUTOMATIC
     azimuth_command = tunable(0)
 
     def __init__(self):
         self.enabled = False
         self.vision = FROGVision()
+        self.chassis_heading = 0
 
     def disable(self):
         self.enabled = False
@@ -62,6 +67,7 @@ class Azimuth:
         self.enabled = True
 
     def isReady(self):
+        # check to see if we are close to the center
         if abs(160 - self.vision.getTargetX()) < AZIMUTH_PIXEL_TOLERANCE:
             return True
         else:
@@ -88,10 +94,13 @@ class Azimuth:
         self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
         # we start with the turret centered
         self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
+        # setting soft limits and enabling them
         self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
         self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
         self.azimuth_motor.configForwardSoftLimitEnable(True, 0)
         self.azimuth_motor.configReverseSoftLimitEnable(True, 0)
+        # set PID
+        self._PID.configTalon(self.azimuth_motor)
 
     def setPosition(self, value):
         # move to the given position
@@ -104,15 +113,16 @@ class Azimuth:
 
     def execute(self):
         if self.enabled:
-            self.azimuth_command = self.vision.getTargetRotation()
+            if self.azimuth_mode == AZIMUTH_MODE_AUTOMATIC:
+                self.setPosition(self.getPosition() + self.vision.getTargetPosition())
             self.azimuth_motor.set(self.azimuth_mode, self.azimuth_command)
         else:
             self.azimuth_motor.set(0)
 
 
 class Conveyor:
-    conveyor_motor: WPI_TalonSRX
-    conveyor_command = tunable(0)
+    conveyor_motor: WPI_VictorSPX
+    conveyor_command = tunable(0.4)
 
     def __init__(self):
         self.enabled = False
@@ -128,7 +138,7 @@ class Conveyor:
         return self.conveyor_motor.get()
 
     def setup(self):
-        self.conveyor_motor.setInverted(False)
+        self.conveyor_motor.setInverted(True)
         self.conveyor_motor.setNeutralMode(NeutralMode.Brake)
 
     def set_speed(self, speed):
@@ -178,10 +188,13 @@ class Elevation:
         self.elevation_motor.setNeutralMode(NeutralMode.Brake)
         # high angle.  We start with the linear screw all the way down
         self.elevation_motor.setSelectedSensorPosition(ELEVATION_HIGH, 0, 0)
+        # setting soft limits and enabling TalonFXInvertType
         self.elevation_motor.configForwardSoftLimitThreshold(ELEVATION_HIGH - 100, 0)
         self.elevation_motor.configReverseSoftLimitThreshold(ELEVATION_LOW + 100, 0)
         self.elevation_motor.configForwardSoftLimitEnable(True, 0)
         self.elevation_motor.configReverseSoftLimitEnable(True, 0)
+        # setting the PID
+        self._PID.configTalon(self.elevation_motor)
 
     def set_position(self, value):
         # move to the given position
@@ -292,8 +305,8 @@ class Flywheel:
 
 class Intake:
 
-    intake_motor: WPI_TalonSRX
-    intake_command = tunable(0)
+    intake_motor: WPI_VictorSPX
+    intake_command = tunable(0.4)
 
     def __init__(self):
         self.enabled = False
@@ -380,17 +393,33 @@ class FROGShooter(StateMachine):
     azimuth: Azimuth
     elevation: Elevation
     flywheel: Flywheel
+
     # loader: Loader
-    # conveyor: Conveyor
-    # intake: Intake
+    conveyor: Conveyor
+    intake: Intake
+
+    def __init__(self):
+
+        super().__init__()
+        self.chassis_heading = 0
+        self.vision: FROGVision()
 
     def fire(self):
         # start the state machine with the @state that's "first=True"
         self.engage()
 
     @state(first=True)
+    def checkOrientation(self):
+        if -180 < self.chassis_heading < 180:
+            # self.next_state_now('findTarget')
+            self.intake.enable()
+            self.conveyor.enable()
+
+    @state()
     def findTarget(self):
+        self.azimuth.chassis_heading = self.chassis_heading
         self.azimuth.enable()
+
         if self.azimuth.vision.getTargetX():
             self.next_state_now('prepareToFire')
 
