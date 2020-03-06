@@ -31,7 +31,7 @@ class Lift:
     def get_positionLeft(self):
         return self.liftLeft.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
 
-    @feedback(key - 'RightPosition')
+    @feedback(key='RightPosition')
     def get_positionRight(self):
         return self.liftRight.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
 
