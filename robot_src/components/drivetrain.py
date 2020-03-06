@@ -4,7 +4,6 @@ from ctre import (
     ControlMode,
     NeutralMode,
     FeedbackDevice,
-    PigeonIMU,
     TalonFXInvertType,
 )
 from wpilib.drive import DifferentialDrive
