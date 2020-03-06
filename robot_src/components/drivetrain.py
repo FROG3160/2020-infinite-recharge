@@ -27,17 +27,17 @@ TICKS_PER_ANGLE = 39270 / 180
 
 # PIDs for drivetrain
 # VelocityPID = TalonPID(slot=0, f=0.0482)
-VelocityPID = TalonPID(slot=0, f=0.057995, p=0.063832)
-DiffDrivePID_calculated = TalonPID(slot=0, f=0.028998, p=0.031916)
+VelocityPID = TalonPID(slot=0, f=0.049200058, p=0.0539999, d=6.0)
+# DiffDrivePID_calculated = TalonPID(slot=0, f=0.028998, p=0.031916)
 
 # PositionPID = TalonPID(slot=0, f=0.003, p=0.05)
 PositionPID = VelocityPID
 # RotatePID = TalonPID(slot=0, f=0.320, p=0.76)
 # TurnPID = TalonPID(p=0.035, d=0.10, i=0.001)
-PIDOutputLimit = 0.66
+# PIDOutputLimit = 0.66
 
 
-TURNDEADBAND = 1.5  # in degrees
+# TURNDEADBAND = 1.5  # in degrees
 
 # Motor Control modes
 VELOCITY_MODE = ControlMode.Velocity
