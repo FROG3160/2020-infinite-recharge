@@ -1,15 +1,19 @@
 import wpilib
+from wpilib import Joystick, XboxController
 from wpilib.interfaces import GenericHID
 from .common import remap
 from networktables import NetworkTables
 from magicbot import feedback
 
 
-LEFTHAND = wpilib.XboxController.Hand.kLeftHand
-RIGHTHAND = wpilib.XboxController.Hand.kRightHand
+LEFTHAND = XboxController.Hand.kLeftHand
+RIGHTHAND = XboxController.Hand.kRightHand
+
+LEFT_RUMBLE = GenericHID.RumbleType.kLeftRumble
+RIGHT_RUMBLE = GenericHID.RumbleType.kRightRumble
 
 
-class FROGStick(wpilib.Joystick):
+class FROGStick(Joystick):
 
     DEADBAND = 0.15
     SPEED_DIVISOR = 1
@@ -141,7 +145,7 @@ class FROGXboxSimple(wpilib.XboxController):
 
 class FROGXboxDriver(wpilib.XboxController):
     DEADBAND = 0.1
-    SPEED_DIVISOR = 1
+    SPEED_DIVISOR = 1.2
     ROTATION_DIVISOR = 1.5
     DEBOUNCE_PERIOD = 0.5
 
@@ -151,7 +155,6 @@ class FROGXboxDriver(wpilib.XboxController):
         # self.setThrottleChannel(3)
         # self.setTwistChannel()
         self.button_latest = {}
-        self.pov_latest = None
         self.timer = wpilib.Timer
         self.nt = NetworkTables.getTable("FROGXboxDriver_values")
 
@@ -215,7 +218,6 @@ class FROGXboxGunner(wpilib.XboxController):
 
         super().__init__(channel)
         self.button_latest = {}
-        self.pov_latest = 0
         self.timer = wpilib.Timer
         self.nt = NetworkTables.getTable("components/driverstation/gunner_stick")
 
@@ -253,13 +255,16 @@ class FROGXboxGunner(wpilib.XboxController):
         val = -1
         now = self.timer.getFPGATimestamp()
         pov = self.getPOV()
+        # if button is pressed and we are outside the debounce period, set value
         if pov > -1:
             if (now - self.button_latest.get('POV', 0)) > self.DEBOUNCE_PERIOD:
                 self.button_latest['POV'] = now
                 val = pov
-                self.setRumble(GenericHID.RumbleType.kRightRumble, 1)
-            else:
-                self.setRumble(GenericHID.RumbleType.kRightRumble, 0)
+        # if we are inside the debounce period, turn on rumble.
+        if (now - self.button_latest.get('POV', 0)) < self.DEBOUNCE_PERIOD:
+            self.setRumble(RIGHT_RUMBLE, 1)
+        else:
+            self.setRumble(RIGHT_RUMBLE, 0)
         self.update_nt('button_pov', val)
         return val
 
