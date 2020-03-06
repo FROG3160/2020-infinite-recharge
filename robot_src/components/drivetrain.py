@@ -23,7 +23,7 @@ MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/
 MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
 TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
-TICKS_PER_ANGLE = 40000 / 180
+TICKS_PER_ANGLE = 39270 / 180
 
 # PIDs for drivetrain
 # VelocityPID = TalonPID(slot=0, f=0.0482)
