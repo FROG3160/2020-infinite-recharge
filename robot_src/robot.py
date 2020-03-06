@@ -2,7 +2,7 @@
 
 import magicbot
 import wpilib
-from ctre import WPI_TalonFX, WPI_TalonSRX
+from ctre import WPI_TalonFX, WPI_TalonSRX, WPI_VictorSPX
 from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
 from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxGunner
 from components.shooter import (
@@ -14,7 +14,11 @@ from components.shooter import (
     Conveyor,
     Intake,
 )
+from components.lift import Lift
 from components.common import LED
+
+LEFTHAND = wpilib.XboxController.Hand.kLeftHand
+RIGHTHAND = wpilib.XboxController.Hand.kRightHand
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -28,9 +32,10 @@ class FROGbot(magicbot.MagicRobot):
     azimuth: Azimuth
     elevation: Elevation
     flywheel: Flywheel
-    # loader: Loader
-    # conveyor: Conveyor
-    # intake: Intake
+    loader: Loader
+    conveyor: Conveyor
+    intake: Intake
+    lift: Lift
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -40,18 +45,18 @@ class FROGbot(magicbot.MagicRobot):
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
 
-        # self.intake_motor = WPI_TalonSRX(21)
-        # self.conveyor_motor = WPI_TalonSRX(22)
-        # self.loader_motor = WPI_TalonSRX(23)
+        self.intake_motor = WPI_VictorSPX(21)
+        self.conveyor_motor = WPI_VictorSPX(22)
+        self.loader_motor = WPI_TalonSRX(23)
 
         self.azimuth_motor = WPI_TalonSRX(31)
         self.elevation_motor = WPI_TalonSRX(32)
         self.flywheel_motor = WPI_TalonFX(33)
 
-        self.controlwheel_motor = WPI_TalonSRX(41)
+        # self.controlwheel_motor = WPI_TalonSRX(41)
 
-        # self.liftLeft = WPI_TalonFX(51)
-        # self.liftRight = WPI_TalonFX(52)
+        self.liftLeft = WPI_TalonSRX(51)
+        self.liftRight = WPI_TalonSRX(52)
 
         # controls
         self.drive_stick = FROGXboxDriver(0)
@@ -59,17 +64,15 @@ class FROGbot(magicbot.MagicRobot):
 
         self.led = LED(0, 29)
 
-    def teleopInit(self):
-        """Called when teleop starts; optional"""
-        self.chassis.reset_encoders()
-        self.chassis.init_velocity_mode()
+    def getDriverInputs(self):
+        # allow the driver to zero the gyro
 
-    def teleopPeriodic(self):
-        """Called on each iteration of the control loop"""
-
-        if self.drive_stick.getStickButtonPressed(wpilib.XboxController.Hand.kLeftHand):
+        if self.drive_stick.getStickButtonPressed(LEFTHAND):
             self.chassis.resetGyro()
-        if self.drive_stick.getBumperPressed(wpilib.XboxController.Hand.kRightHand):
+
+        # Right Bumper changes between position control with d-pad (POV)
+        # and driving the robot with the joystick/trigger
+        if self.drive_stick.getBumperPressed(RIGHTHAND):
             self.chassis.toggle_control_mode()
 
         if self.chassis.control_mode == POSITION_MODE:
@@ -79,20 +82,17 @@ class FROGbot(magicbot.MagicRobot):
             elif pov == 180:
                 self.chassis.set_position(-36)  # tell it to roll backward 36 inches
             elif pov == 90:
-                self.chassis.set_rotate(90)
+                self.chassis.set_rotate(45)
             elif pov == 270:
-                self.chassis.set_rotate(-90)
+                self.chassis.set_rotate(-45)
         else:
             self.chassis.set_velocity(
                 self.drive_stick.get_speed(), self.drive_stick.get_rotation()
             )
 
-        if self.gunner_stick.getTriggerAxis(wpilib.XboxController.Hand.kRightHand) == 1:
+    def getGunnerInputs(self):
+        if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
             self.shooter.fire()
-        # self.azimuth.setSpeed(self.gunner_stick.get_rotation())
-        # self.azimuth.enable()
-        self.elevation.set_speed(self.gunner_stick.get_elevation())
-        self.elevation.enable()
 
         if self.gunner_stick.get_debounced_POV() == 0:
             self.flywheel.incrementSpeed()
@@ -103,6 +103,32 @@ class FROGbot(magicbot.MagicRobot):
         if self.gunner_stick.getBButtonPressed():
             self.flywheel.disable()
             self.azimuth.disable()
+
+        # runs the belts using the bumpers
+        if self.gunner_stick.getBumper(RIGHTHAND):
+            self.conveyor.enable()
+        else:
+            self.conveyor.disable()
+        if self.gunner_stick.getBumper(LEFTHAND):
+            self.intake.enable()
+        else:
+            self.intake.disable()
+
+        self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+        self.azimuth.enable()
+        self.elevation.set_speed(self.gunner_stick.get_elevation())
+        self.elevation.enable()
+
+    def teleopInit(self):
+        """Called when teleop starts; optional"""
+        self.chassis.reset_encoders()
+        self.chassis.init_velocity_mode()
+
+    def teleopPeriodic(self):
+        """Called on each iteration of the control loop"""
+
+        self.getDriverInputs()
+        self.getGunnerInputs()
 
     def testInit(self):
 
