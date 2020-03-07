@@ -44,8 +44,8 @@ AZIMUTH_MODE_MANUAL = 0
 AZIMUTH_MODE_AUTOMATIC = 1
 # TODO: FIGURE encoder ticks per pixel, or per angle
 
-INTAKE_SPEED = 0.2
-LOWER_CONVEYOR_SPEED = 0.2
+INTAKE_SPEED = 0.4
+LOWER_CONVEYOR_SPEED = 0.5
 UPPER_CONVEYOR_SPEED = 0.2
 
 
@@ -306,7 +306,7 @@ class Flywheel:
 class Intake:
 
     intake_motor: WPI_VictorSPX
-    intake_command = tunable(0.4)
+    intake_command = tunable(INTAKE_SPEED)
 
     def __init__(self):
         self.enabled = False
