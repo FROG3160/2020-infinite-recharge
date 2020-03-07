@@ -21,6 +21,10 @@ from components.common import LED
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
 
+# controller modes
+NORMAL = 0
+MANUAL = 1
+
 
 class FROGbot(magicbot.MagicRobot):
     """
@@ -69,11 +73,13 @@ class FROGbot(magicbot.MagicRobot):
 
         self.led = LED(0, 29)
 
+        self.driverMode = NORMAL
+        self.gunnerMode = NORMAL
+
     def getDriverInputs(self):
         # allow the driver to zero the gyro
-
         if self.drive_stick.getStickButtonPressed(LEFTHAND):
-            self.chassis.resetGyro()
+            self.chassis.gyro.resetGyro()
 
         # Right Bumper changes between position control with d-pad (POV)
         # and driving the robot with the joystick/trigger
@@ -96,33 +102,54 @@ class FROGbot(magicbot.MagicRobot):
             )
 
     def getGunnerInputs(self):
-        if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
-            self.shooter.fire()
 
-        if self.gunner_stick.get_debounced_POV() == 0:
-            self.flywheel.incrementSpeed()
-            self.flywheel.enable()
-        elif self.gunner_stick.get_debounced_POV() == 180:
-            self.flywheel.decrementSpeed()
-            self.flywheel.enable()
-        if self.gunner_stick.getBButtonPressed():
-            self.flywheel.disable()
-            self.azimuth.disable()
+        if self.gunnerMode == NORMAL:
+            # run the shooter state machine
+            self.shooter.engage()
 
-        # runs the belts using the bumpers
-        if self.gunner_stick.getBumper(RIGHTHAND):
-            self.conveyor.enable()
-        else:
-            self.conveyor.disable()
-        if self.gunner_stick.getBumper(LEFTHAND):
-            self.intake.enable()
-        else:
-            self.intake.disable()
+            # the small button on the right
+            if self.gunner_stick.getStartButton():
+                print("Change to MANUAL")
+                self.gunnerMode = MANUAL
 
-        self.azimuth.setSpeed(self.gunner_stick.get_rotation())
-        self.azimuth.enable()
-        self.elevation.set_speed(self.gunner_stick.get_elevation())
-        self.elevation.enable()
+            if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
+                self.shooter.fire()
+
+            if self.gunner_stick.getBumper(RIGHTHAND) == 1:
+                pass
+
+        elif self.gunnerMode == MANUAL:
+            # the small button on the left
+            if self.gunner_stick.getBackButton():
+                print("Back to NORMAL")
+                self.gunnerMode = NORMAL
+
+            if self.gunner_stick.get_debounced_POV() == 0:
+                self.flywheel.incrementSpeed()
+                self.flywheel.enable()
+
+            elif self.gunner_stick.get_debounced_POV() == 180:
+                self.flywheel.decrementSpeed()
+                self.flywheel.enable()
+
+            if self.gunner_stick.getBButtonPressed():
+                self.flywheel.disable()
+                self.azimuth.disable()
+
+            # runs the belts using the bumpers
+            if self.gunner_stick.getBumper(RIGHTHAND):
+                self.conveyor.enable()
+            else:
+                self.conveyor.disable()
+            if self.gunner_stick.getBumper(LEFTHAND):
+                self.intake.enable()
+            else:
+                self.intake.disable()
+
+            self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+            self.azimuth.enable()
+            self.elevation.set_speed(self.gunner_stick.get_elevation())
+            self.elevation.enable()
 
     def teleopInit(self):
         """Called when teleop starts; optional"""

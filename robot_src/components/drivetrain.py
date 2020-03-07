@@ -10,6 +10,9 @@ from wpilib.drive import DifferentialDrive
 import math
 from .common import TalonPID, limit
 from navx import AHRS
+from .sensors import FROGGyro
+
+# from .sensors import FROGGyro
 
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
@@ -72,16 +75,7 @@ class FROGDrive(DifferentialDrive):
         # This needs to be in place to prevent the __init__ of
         # DifferentialDrive from running until we have all components
         # available.
-        self.gyro = AHRS.create_spi()
-        self.gyro.reset()
-
-    @feedback(key='Heading')
-    def getHeading(self):
-        # returns gyro heading +180 to -180 degrees
-        return self.gyro.getYaw()
-
-    def resetGyro(self):
-        self.gyro.reset()
+        self.gyro = FROGGyro()
 
     def init_position_mode(self):
         self.set_PID(PositionPID)

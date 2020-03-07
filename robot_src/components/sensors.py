@@ -1,6 +1,7 @@
 from collections import deque
 from magicbot import feedback, tunable
 from ctre import CANifier
+from navx import AHRS
 
 BUFFERLEN = 100
 SENSORUNITS_IN_INCHES = 0.0394
@@ -45,3 +46,18 @@ class LIDAR:
             self.rangeBuffer.append(self.getSensorData())
             if (bufferlen := len(self.rangeBuffer)) > 0:
                 self.targetRange = sum(self.rangeBuffer) / bufferlen
+
+
+class FROGGyro:
+    def __init__(self):
+
+        self.gyro = AHRS.create_spi()
+        self.gyro.reset()
+
+    @feedback(key='Heading')
+    def getHeading(self):
+        # returns gyro heading +180 to -180 degrees
+        return self.gyro.getYaw()
+
+    def resetGyro(self):
+        self.gyro.reset()

@@ -10,7 +10,8 @@ from ctre import (
 )
 from .common import TalonPID, limit
 from magicbot import tunable, feedback, StateMachine, state, timed_state
-from .vision import FROGVision
+from .vision import FROGVision, CAM_RES_H
+from .sensors import FROGGyro
 
 AZIMUTH_PID = TalonPID(0, p=32)
 ELEVATION_PID = TalonPID(0, p=32)
@@ -36,13 +37,14 @@ ELEVATION_LOW = 0
 ELEVATION_HIGH = 4500
 
 AZIMUTH_MODE = ControlMode.PercentOutput
-AZIMUTH_CENTER = 2700
-AZIMUTH_LIMIT_RIGHT = 5400
-AZIMUTH_LIMIT_LEFT = 0
+AZIMUTH_CENTER = 0
+AZIMUTH_LIMIT_RIGHT = 2700
+AZIMUTH_LIMIT_LEFT = -2700
 AZIMUTH_PIXEL_TOLERANCE = 5
 AZIMUTH_MODE_MANUAL = 0
-AZIMUTH_MODE_AUTOMATIC = 1
-# TODO: FIGURE encoder ticks per pixel, or per angle
+AZIMUTH_MODE_AUTOMATIC = ControlMode.PercentOutput
+ENCODER_PER_H_FOV = 1180
+ENCODER_PER_PIXEL = ENCODER_PER_H_FOV / CAM_RES_H
 
 INTAKE_SPEED = 0.4
 LOWER_CONVEYOR_SPEED = 0.5
@@ -57,7 +59,7 @@ class Azimuth:
 
     def __init__(self):
         self.enabled = False
-        self.vision = FROGVision()
+        # self.vision = FROGVision()
         self.chassis_heading = 0
 
     def disable(self):
@@ -65,13 +67,6 @@ class Azimuth:
 
     def enable(self):
         self.enabled = True
-
-    def isReady(self):
-        # check to see if we are close to the center
-        if abs(160 - self.vision.getTargetX()) < AZIMUTH_PIXEL_TOLERANCE:
-            return True
-        else:
-            return False
 
     # read current encoder position
     @feedback(key='Position')
@@ -113,8 +108,10 @@ class Azimuth:
 
     def execute(self):
         if self.enabled:
-            if self.azimuth_mode == AZIMUTH_MODE_AUTOMATIC:
-                self.setPosition(self.getPosition() + self.vision.getTargetPosition())
+            # if self.azimuth_mode == AZIMUTH_MODE_AUTOMATIC:
+            # self.setPosition(
+            # self.getPosition() + self.vision.getPowerPortPosition()
+            # )
             self.azimuth_motor.set(self.azimuth_mode, self.azimuth_command)
         else:
             self.azimuth_motor.set(0)
@@ -402,33 +399,48 @@ class FROGShooter(StateMachine):
 
         super().__init__()
         self.chassis_heading = 0
-        self.vision: FROGVision()
+        self.vision = FROGVision()
+        self.gyro = FROGGyro()
 
     def fire(self):
         # start the state machine with the @state that's "first=True"
         self.engage()
 
+    def isOnTarget(self):
+        # check to see if we are close to the center
+        return abs(self.vision.getPowerPortXOffset()) < AZIMUTH_PIXEL_TOLERANCE
+
     @state(first=True)
     def checkOrientation(self):
-        if -180 < self.chassis_heading < 180:
-            # self.next_state_now('findTarget')
-            self.intake.enable()
-            self.conveyor.enable()
+        if -90 < self.gyro.getHeading() < 90:
+            self.next_state('findPortal')
 
     @state()
-    def findTarget(self):
-        self.azimuth.chassis_heading = self.chassis_heading
+    def findPortal(self):
+        if self.vision.getPowerPortX():
+            self.next_state('prepareToFire')
+        else:
+            azimuthPosition = self.gyro.getHeading() * -30
+            if abs(azimuthPosition) > AZIMUTH_LIMIT_RIGHT:
+                self.next_state('checkOrientation')
+                self.azimuth.setPosition(0)
+            else:
+                self.azimuth.setPosition(azimuthPosition)
         self.azimuth.enable()
-
-        if self.azimuth.vision.getTargetX():
-            self.next_state_now('prepareToFire')
 
     @state()
     def prepareToFire(self):
-        self.flywheel.enable()
-        self.azimuth.enable()
+        if (pp_x := self.vision.getPowerPortXOffset()) :
+            azimuthPosition = pp_x * ENCODER_PER_PIXEL
+            if abs(azimuthPosition) > AZIMUTH_LIMIT_RIGHT:
+                self.next_state_now('checkOrientation')
+                self.azimuth.setPosition(0)
+            else:
+                self.azimuth.setPosition(azimuthPosition)
+        # self.flywheel.enable()
+        # self.azimuth.enable()
 
-        if self.flywheel.isReady() and self.azimuth.isReady():
+        if self.flywheel.isReady() and self.isOnTarget():
             self.next_state_now('firing')
 
     @timed_state(duration=1, must_finish=True)

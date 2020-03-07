@@ -18,16 +18,14 @@ CONTROL_TABLE = TARGETING_TABLE + '/control'
 AZIMUTH_PIXEL_DECEL_LIMIT = 160
 AZIMUTH_PIXEL_TOLERANCE = 20
 
+# camera resolution constants
+CAM_RES_H = 320
+CAM_RES_V = 240
+FOV_RAD_H = 0.896376
+FOV_RAD_V = 0.74858
+
 
 class FROGVision:
-
-    # camera resolution constants
-    CAM_RES_H = 320
-    CAM_RES_V = 240
-    FOV_RAD_H = 0.896376
-    FOV_RAD_V = 0.74858
-    ENCODER_PER_H_FOV = 1180
-    ENCODER_PER_PIXEL = ENCODER_PER_H_FOV / CAM_RES_H
 
     TARGET_HEIGHT = 24
     CAMERA_HEIGHT = 8
@@ -47,7 +45,7 @@ class FROGVision:
         self.targeting_control = NetworkTables.getTable(CONTROL_TABLE)
 
     @feedback(key="PowerPort_x")
-    def getTargetX(self):
+    def getPowerPortX(self):
         targetx = self.powerport_table.getNumber("center_x", None)
         if targetx == -999:
             return None
@@ -55,17 +53,33 @@ class FROGVision:
             return targetx
 
     @feedback(key='PowerPort_y')
-    def getTargetY(self):
+    def getPowerPortY(self):
         targety = self.powerport_table.getNumber("center_y", None)
         if targety == -999:
             return None
         else:
             return targety
 
-    @feedback(key='PowerPort_angle')
-    def getTargetAngle(self):
+    @feedback(key="PowerCell_x")
+    def getPowerCellX(self):
+        targetx = self.powercell_table.getNumber("center_x", None)
+        if targetx == -999:
+            return None
+        else:
+            return targetx
 
-        target_x = self.getTargetX()
+    @feedback(key='PowerCell_y')
+    def getPowerCellY(self):
+        targety = self.powercell_table.getNumber("center_y", None)
+        if targety == -999:
+            return None
+        else:
+            return targety
+
+    @feedback(key='PowerPort_angle')
+    def getPowerPortAngle(self):
+
+        target_x = self.getPowerPortX()
 
         if target_x:
 
@@ -81,9 +95,9 @@ class FROGVision:
         pass
 
     @feedback(key='PowerPort_rotation')
-    def getTargetRotation(self):
+    def getPowerPortRotation(self):
 
-        target_x = self.getTargetX()
+        target_x = self.getPowerPortX()
 
         if target_x:
             rotation = (
@@ -103,10 +117,11 @@ class FROGVision:
             return 0
 
     @feedback(key='PowerPort_position')
-    def getTargetPosition(self):
+    def getPowerPortXOffset(self):
 
-        target_x = self.getTargetX()
+        target_x = self.getPowerPortX()
 
         if target_x:
-
-            return (target_x - self.FOV_CENTER_H) * ENCODER_PER_PIXEL
+            return target_x - self.FOV_CENTER_H
+        else:
+            return None
