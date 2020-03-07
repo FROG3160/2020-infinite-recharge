@@ -9,8 +9,9 @@ from ctre import (
 from wpilib.drive import DifferentialDrive
 import math
 from .common import TalonPID, limit
-from navx import AHRS
-from .sensors import FROGGyro
+
+# from navx import AHRS
+# from .sensors import FROGGyro
 
 # from .sensors import FROGGyro
 
@@ -21,9 +22,10 @@ from .sensors import FROGGyro
 # The encoders are now on the motor shaft instead of the drive shaft
 # and the encoder has half the resolution of the ones from last year.
 ENCODER_TICKS_PER_REV = 2048 * 10.71  # motor ticks * gear reduction
-MAX_VELOCITY = 12000  # Falcons are maxing at 20k - 21k
-MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/sec
-MAX_DECEL = MAX_ACCEL
+MAX_VELOCITY = 15000  # Falcons are maxing at 20k - 21k
+CLOSEDLOOPRAMP = 1.5
+# MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/sec
+# MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
 TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
 TICKS_PER_ANGLE = 39270 / 180
@@ -75,7 +77,7 @@ class FROGDrive(DifferentialDrive):
         # This needs to be in place to prevent the __init__ of
         # DifferentialDrive from running until we have all components
         # available.
-        self.gyro = FROGGyro()
+        pass
 
     def init_position_mode(self):
         self.set_PID(PositionPID)
@@ -149,6 +151,8 @@ class FROGDrive(DifferentialDrive):
         # configure neutral mode
         self.leftMaster.setNeutralMode(NeutralMode.Coast)
         self.rightMaster.setNeutralMode(NeutralMode.Coast)
+        self.leftMaster.configClosedloopRamp(CLOSEDLOOPRAMP)
+        self.rightMaster.configClosedloopRamp(CLOSEDLOOPRAMP)
         # configure encoders
         for controller in [self.leftMaster, self.rightMaster]:
             controller.configSelectedFeedbackSensor(
@@ -215,18 +219,21 @@ class FROGDrive(DifferentialDrive):
                     leftMotorSpeed = maxInput
                     rightMotorSpeed = speed - rotation
 
+            self.commanded_left_vel = leftMotorSpeed * MAX_VELOCITY
+            self.commanded_right_vel = rightMotorSpeed * MAX_VELOCITY
+
             # adjust the motor velocity by the requested speed,
             # limited by the max velocity allowed.
-            self.commanded_left_vel = self.commanded_left_vel + limit(
-                (leftMotorSpeed * MAX_VELOCITY - self.commanded_left_vel),
-                -MAX_ACCEL,
-                MAX_ACCEL,
-            )
-            self.commanded_right_vel = self.commanded_right_vel + limit(
-                (rightMotorSpeed * MAX_VELOCITY - self.commanded_right_vel),
-                -MAX_ACCEL,
-                MAX_ACCEL,
-            )
+            # self.commanded_left_vel = self.commanded_left_vel + limit(
+            # (leftMotorSpeed * MAX_VELOCITY - self.commanded_left_vel),
+            # -MAX_ACCEL,
+            # MAX_ACCEL,
+            # )
+            # self.commanded_right_vel = self.commanded_right_vel + limit(
+            # (rightMotorSpeed * MAX_VELOCITY - self.commanded_right_vel),
+            # -MAX_ACCEL,
+            # MAX_ACCEL,
+            # )
 
     def set_position(self, distance):
         # We only want to set the position if it's in POSITION_MODE
