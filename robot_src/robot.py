@@ -2,7 +2,7 @@
 
 import magicbot
 import wpilib
-from ctre import WPI_TalonFX, WPI_TalonSRX, WPI_VictorSPX
+from ctre import WPI_TalonFX, WPI_TalonSRX, WPI_VictorSPX, CANifier
 from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
 from components.driverstation import FROGStick, FROGXboxDriver, FROGXboxGunner
 from components.shooter import (
@@ -15,6 +15,7 @@ from components.shooter import (
     Intake,
 )
 from components.lift import Lift
+from components.sensors import LIDAR
 from components.common import LED
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
@@ -25,6 +26,8 @@ class FROGbot(magicbot.MagicRobot):
     """
         Initialize components here.
     """
+
+    lidar: LIDAR
 
     chassis: FROGDrive
     shooter: FROGShooter
@@ -61,6 +64,8 @@ class FROGbot(magicbot.MagicRobot):
         # controls
         self.drive_stick = FROGXboxDriver(0)
         self.gunner_stick = FROGXboxGunner(1)
+
+        self.pwm_sensor = CANifier(39)
 
         self.led = LED(0, 29)
 
@@ -123,6 +128,7 @@ class FROGbot(magicbot.MagicRobot):
         """Called when teleop starts; optional"""
         self.chassis.reset_encoders()
         self.chassis.init_velocity_mode()
+        self.lidar.enable()
 
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
