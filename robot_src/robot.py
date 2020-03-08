@@ -131,25 +131,35 @@ class FROGbot(magicbot.MagicRobot):
 
             if self.gunner_stick.get_debounced_POV() == 0:
                 self.flywheel.incrementSpeed()
-                # self.flywheel.enable()
 
             elif self.gunner_stick.get_debounced_POV() == 180:
                 self.flywheel.decrementSpeed()
-                # self.flywheel.enable()
-
-            if self.gunner_stick.getBButtonPressed():
-                self.flywheel.disable()
-                self.azimuth.disable()
 
             # runs the belts using the bumpers
             if self.gunner_stick.getBumper(RIGHTHAND):
                 self.conveyor.enable()
             else:
                 self.conveyor.disable()
+
             if self.gunner_stick.getBumper(LEFTHAND):
                 self.intake.enable()
             else:
                 self.intake.disable()
+
+            if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
+                self.loader.override = True
+                self.loader.enable()
+            else:
+                self.loader.override = False
+                self.loader.disable()
+
+            if self.gunner_stick.getAButtonPressed():
+                self.flywheel.toggleVelocityMode()
+            if self.gunner_stick.getXButtonPressed():
+                self.flywheel.enable()
+
+            if self.gunner_stick.getBButtonPressed():
+                self.flywheel.disable()
 
             self.azimuth.setSpeed(self.gunner_stick.get_rotation())
             self.azimuth.enable()
