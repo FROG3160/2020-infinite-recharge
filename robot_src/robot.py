@@ -15,8 +15,9 @@ from components.shooter import (
     Intake,
 )
 from components.lift import Lift
-from components.sensors import LIDAR
-from components.common import LED
+from components.sensors import FROGdar, FROGGyro
+from components.led import FROGLED
+from components.vision import FROGVision
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
@@ -31,7 +32,7 @@ class FROGbot(magicbot.MagicRobot):
         Initialize components here.
     """
 
-    lidar: LIDAR
+    lidar: FROGdar
 
     chassis: FROGDrive
     shooter: FROGShooter
@@ -43,6 +44,7 @@ class FROGbot(magicbot.MagicRobot):
     conveyor: Conveyor
     intake: Intake
     lift: Lift
+    vision: FROGVision
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -69,9 +71,12 @@ class FROGbot(magicbot.MagicRobot):
         self.drive_stick = FROGXboxDriver(0)
         self.gunner_stick = FROGXboxGunner(1)
 
+        # used for LIDAR
         self.pwm_sensor = CANifier(39)
 
-        self.led = LED(0, 29)
+        # other objects
+        self.gyro = FROGGyro()
+        self.led = FROGLED(0, 144)
 
         self.driverMode = NORMAL
         self.gunnerMode = NORMAL
@@ -79,7 +84,7 @@ class FROGbot(magicbot.MagicRobot):
     def getDriverInputs(self):
         # allow the driver to zero the gyro
         if self.drive_stick.getStickButtonPressed(LEFTHAND):
-            self.chassis.gyro.resetGyro()
+            self.gyro.resetGyro()
 
         # Right Bumper changes between position control with d-pad (POV)
         # and driving the robot with the joystick/trigger
@@ -113,7 +118,7 @@ class FROGbot(magicbot.MagicRobot):
                 self.gunnerMode = MANUAL
 
             if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
-                self.shooter.fire()
+                pass
 
             if self.gunner_stick.getBumper(RIGHTHAND) == 1:
                 pass
@@ -126,11 +131,11 @@ class FROGbot(magicbot.MagicRobot):
 
             if self.gunner_stick.get_debounced_POV() == 0:
                 self.flywheel.incrementSpeed()
-                self.flywheel.enable()
+                # self.flywheel.enable()
 
             elif self.gunner_stick.get_debounced_POV() == 180:
                 self.flywheel.decrementSpeed()
-                self.flywheel.enable()
+                # self.flywheel.enable()
 
             if self.gunner_stick.getBButtonPressed():
                 self.flywheel.disable()
@@ -162,6 +167,8 @@ class FROGbot(magicbot.MagicRobot):
 
         self.getDriverInputs()
         self.getGunnerInputs()
+
+        self.led.setRainbow()
 
     def testInit(self):
 
