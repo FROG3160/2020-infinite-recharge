@@ -8,7 +8,8 @@ from ctre import (
 )
 from wpilib.drive import DifferentialDrive
 import math
-from .common import TalonPID, limit
+from .common import TalonPID, limit, remap
+from .vision import FROGVision
 
 # from navx import AHRS
 # from .sensors import FROGGyro
@@ -27,7 +28,8 @@ CLOSEDLOOPRAMP = 1.5
 # MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/sec
 # MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
-TICKS_PER_INCH = 1149  # ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
+# TICKS_PER_INCH = 1149  #
+TICKS_PER_INCH = ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
 TICKS_PER_ANGLE = 39270 / 180
 
 # PIDs for drivetrain
@@ -61,6 +63,8 @@ class FROGDrive(DifferentialDrive):
     rightMaster: WPI_TalonFX
     leftSlave: WPI_TalonFX
     rightSlave: WPI_TalonFX
+
+    vision: FROGVision
 
     control_mode = ControlMode.Position
     control_mode_str = tunable('None')
@@ -285,6 +289,11 @@ class FROGDrive(DifferentialDrive):
         # TODO: Move initialization on every enable (teleop/auto)
         # useful for resetting components to a safe/known state
         self.reset_encoders()  # this is currently run in teleop_init, too
+
+    def driveToTarget(self):
+        rotate = remap(self.vision.getPowerCellXError(), -160, 160, -1, 1)
+        speed = remap(self.vision.getPowerCellYError(), 0, 240, 0, 1)
+        self.set_velocity(speed, rotate)
 
     def execute(self):
         # set motor values

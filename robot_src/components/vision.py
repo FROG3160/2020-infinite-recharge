@@ -126,5 +126,19 @@ class FROGVision:
         else:
             return None
 
+    def getPowerCellXError(self):
+        target_x = self.getPowerCellX()
+        if target_x:
+            return target_x - self.FOV_CENTER_H
+        else:
+            return None
+
+    def getPowerCellYError(self):
+        target_y = self.getPowerCellY()
+        if target_y:
+            return CAM_RES_V - target_y
+        else:
+            return None
+
     def execute(self):
         pass
