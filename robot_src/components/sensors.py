@@ -7,7 +7,7 @@ BUFFERLEN = 100
 SENSORUNITS_IN_INCHES = 0.0394
 
 
-class LIDAR:
+class FROGdar:
     pwm_sensor: CANifier
 
     def __init__(self):
@@ -50,7 +50,6 @@ class LIDAR:
 
 class FROGGyro:
     def __init__(self):
-
         self.gyro = AHRS.create_spi()
         self.gyro.reset()
 
