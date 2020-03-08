@@ -117,7 +117,7 @@ class FROGVision:
             return 0
 
     @feedback(key='PowerPort_position')
-    def getPowerPortXOffset(self):
+    def getPowerPortXError(self):
 
         target_x = self.getPowerPortX()
 
@@ -125,3 +125,6 @@ class FROGVision:
             return target_x - self.FOV_CENTER_H
         else:
             return None
+
+    def execute(self):
+        pass
