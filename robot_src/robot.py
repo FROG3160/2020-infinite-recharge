@@ -102,9 +102,13 @@ class FROGbot(magicbot.MagicRobot):
             elif pov == 270:
                 self.chassis.set_rotate(-45)
         else:
-            self.chassis.set_velocity(
-                self.drive_stick.get_speed(), self.drive_stick.get_rotation()
-            )
+            if self.drive_stick.getStickButton(RIGHTHAND):
+                self.chassis.driveToTarget()
+            else:
+
+                self.chassis.set_velocity(
+                    self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+                )
 
     def getGunnerInputs(self):
 
@@ -114,8 +118,12 @@ class FROGbot(magicbot.MagicRobot):
 
             # the small button on the right
             if self.gunner_stick.getStartButton():
-                print("Change to MANUAL")
                 self.gunnerMode = MANUAL
+                self.intake.disable()
+                self.conveyor.disable()
+                self.loader.disable()
+                self.flywheel.disable()
+                self.azimuth.setManual()
 
             if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
                 pass
