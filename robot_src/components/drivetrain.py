@@ -19,14 +19,11 @@ from .vision import FROGVision
 # from subsystems.vision import FROGVision
 # from subsystems.common import PID
 
-# drivetrain characteristics.  Values are changed from last year.
-# The encoders are now on the motor shaft instead of the drive shaft
-# and the encoder has half the resolution of the ones from last year.
-ENCODER_TICKS_PER_REV = 2048 * 10.71  # motor ticks * gear reduction
+# drivetrain characteristics
+FALCON_CPR = 2048
+ENCODER_TICKS_PER_REV = FALCON_CPR * 10.71  # motor ticks * gear reduction
 MAX_VELOCITY = 15000  # Falcons are maxing at 20k - 21k
 CLOSEDLOOPRAMP = 1.5
-# MAX_ACCEL = MAX_VELOCITY / 25  # sampled 50 times a second makes this MAX ACCEL/sec
-# MAX_DECEL = MAX_ACCEL
 WHEEL_DIAMETER = 6
 # TICKS_PER_INCH = 1149  #
 TICKS_PER_INCH = ENCODER_TICKS_PER_REV / (math.pi * WHEEL_DIAMETER)
@@ -226,19 +223,6 @@ class FROGDrive(DifferentialDrive):
             self.commanded_left_vel = leftMotorSpeed * MAX_VELOCITY
             self.commanded_right_vel = rightMotorSpeed * MAX_VELOCITY
 
-            # adjust the motor velocity by the requested speed,
-            # limited by the max velocity allowed.
-            # self.commanded_left_vel = self.commanded_left_vel + limit(
-            # (leftMotorSpeed * MAX_VELOCITY - self.commanded_left_vel),
-            # -MAX_ACCEL,
-            # MAX_ACCEL,
-            # )
-            # self.commanded_right_vel = self.commanded_right_vel + limit(
-            # (rightMotorSpeed * MAX_VELOCITY - self.commanded_right_vel),
-            # -MAX_ACCEL,
-            # MAX_ACCEL,
-            # )
-
     def set_position(self, distance):
         # We only want to set the position if it's in POSITION_MODE
         if self.control_mode == POSITION_MODE and distance:
@@ -291,9 +275,12 @@ class FROGDrive(DifferentialDrive):
         self.reset_encoders()  # this is currently run in teleop_init, too
 
     def driveToTarget(self):
-        rotate = remap(self.vision.getPowerCellXError(), -160, 160, -1, 1)
-        speed = remap(self.vision.getPowerCellYError(), 0, 240, 0, 1)
-        self.set_velocity(speed, rotate)
+        pc_x = self.vision.getPowerCellXError()
+        pc_y = self.vision.getPowerCellYError()
+        if pc_x and pc_y:
+            rotate = remap(pc_x, -160, 160, -0.6, 0.6)
+            speed = remap(pc_y, 0, 240, 0.3, 1)
+            self.set_velocity(speed, rotate)
 
     def execute(self):
         # set motor values
