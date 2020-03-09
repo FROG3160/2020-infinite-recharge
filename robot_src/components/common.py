@@ -1,4 +1,24 @@
 from wpilib import AddressableLED
+from collections import deque
+
+
+class buffer(deque):
+    def __init__(self, size, validLength=1):
+        self.validLength = validLength
+        super().__init__(maxlen=size)
+
+    def isValidData(self):
+        return len(self) >= self.validLength
+
+    def average(self):
+        if self.isValidData():
+            return sum(self) / len(self)
+        else:
+            return None
+
+    def appendList(self, values):
+        for value in values:
+            self.append(value)
 
 
 class TalonPID:
