@@ -4,9 +4,16 @@ from .common import TalonPID
 from magicbot import tunable, feedback
 
 LIFT_PID = TalonPID(0, p=0.3)
-LIFT_MODE = ControlMode.PercentOutput
+LIFT_MODE = ControlMode.Position
 LIFT_HIGH = 0
 LIFT_LOW = 0
+FEEDBACK_DEVICE = FeedbackDevice.CTRE_MagEncoder_Relative
+LIFT_TICKS_PER_REVOLUTION = 4096
+LIFT_REVOLUTIONS_PER_INCH = 2
+LIFT_TICKS_PER_INCH = LIFT_TICKS_PER_REVOLUTION * LIFT_REVOLUTIONS_PER_INCH
+STARTING_POSITION_INCHES = 0
+EXTENDED_POSITION_INCHES = 30
+FINAL_POSITION_INCHES = 15
 
 
 class Lift:
@@ -29,11 +36,11 @@ class Lift:
     # read current encoder position
     @feedback(key='LeftPosition')
     def get_positionLeft(self):
-        return self.liftLeft.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
+        return self.liftLeft.getSelectedSensorPosition(FEEDBACK_DEVICE)
 
     @feedback(key='RightPosition')
     def get_positionRight(self):
-        return self.liftRight.getSelectedSensorPosition(FeedbackDevice.IntegratedSensor)
+        return self.liftRight.getSelectedSensorPosition(FEEDBACK_DEVICE)
 
     @feedback(key='Percent')
     def get_speed(self):
@@ -44,9 +51,7 @@ class Lift:
         for motor_controller in [self.liftLeft, self.liftRight]:
 
             # these motors use an attached Quad Encoder
-            motor_controller.configSelectedFeedbackSensor(
-                FeedbackDevice.QuadEncoder, 0, 0
-            )
+            motor_controller.configSelectedFeedbackSensor(FEEDBACK_DEVICE, 0, 0)
             motor_controller.setSensorPhase(False)
             motor_controller.setInverted(False)
             motor_controller.setNeutralMode(NeutralMode.Brake)
@@ -68,6 +73,14 @@ class Lift:
     def set_speed(self, speed):
         self.lift_mode = ControlMode.PercentOutput
         self.lift_command = speed
+
+    def extend(self):
+        self.set_position(EXTENDED_POSITION_INCHES*LIFT_TICKS_PER_INCH)
+
+    def lift(self):
+        self.set_position(FINAL_POSITION_INCHES*LIFT_TICKS_PER_INCH)
+
+    def retract()
 
     def execute(self):
         if self.enabled:
