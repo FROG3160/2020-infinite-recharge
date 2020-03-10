@@ -2,23 +2,36 @@ from wpilib import AddressableLED
 from collections import deque
 
 
-class buffer(deque):
+class Buffer(deque):
     def __init__(self, size, validLength=1):
         self.validLength = validLength
         super().__init__(maxlen=size)
 
+    def filterList(self):
+        # our calculations can't accept None values
+        return [x for x in self if not x is None]
+
+    def lengthFiltered(self):
+        return len(self.filterList())
+
     def isValidData(self):
-        return len(self) >= self.validLength
+        return self.lengthFiltered() >= self.validLength
 
     def average(self):
         if self.isValidData():
-            return sum(self) / len(self)
+            filteredList = self.filterList()
+            return sum(filteredList) / len(filteredList)
         else:
             return None
 
     def appendList(self, values):
         for value in values:
             self.append(value)
+
+
+class TimedBuffer(Buffer):
+    def __init__(self, size, validLength=1):
+        super().__init__(size, validLength)
 
 
 class TalonPID:
@@ -50,14 +63,6 @@ def remap(val, OldMin, OldMax, NewMin, NewMax):
 def limit(val, min_val, max_val):
     '''keep a value within a certain range'''
     return max(min(max_val, val), min_val)
-
-
-class LED(AddressableLED):
-    def __init__(self, portNum, length):
-        super().__init__(portNum)
-        self.setLength(length)
-        self.setData([self.LEDData(255, 0, 255)] * length)
-        self.start()
 
 
 if __name__ == '__main__':
