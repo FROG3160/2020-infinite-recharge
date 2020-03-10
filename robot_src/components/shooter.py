@@ -54,7 +54,7 @@ AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
 
 INTAKE_SPEED = 0.4
 LOWER_CONVEYOR_SPEED = 0.5
-UPPER_CONVEYOR_SPEED = 0.5
+UPPER_CONVEYOR_SPEED = 1
 
 
 class Azimuth:
@@ -289,12 +289,11 @@ class Flywheel:
         # the initial velocity we'll use.
         self._velocityMode = 'PORTAL'
 
-        self._velocity = 0
-
         # sets the values for the two defined velocities
         self._velocities = {}
         self._velocities['LOB'] = FLYWHEEL_VELOCITY_LOB
         self._velocities['PORTAL'] = FLYWHEEL_VELOCITY_PORTAL
+        self._velocity = self._velocities['PORTAL']
 
     def disable(self):
         self.enabled = False
@@ -410,7 +409,7 @@ class Intake:
 
 class Loader:
     loader_motor: WPI_TalonSRX
-    loader_command = tunable(0)
+    loader_command = UPPER_CONVEYOR_SPEED
 
     def __init__(self):
         self.enabled = False
@@ -447,7 +446,7 @@ class Loader:
         return self.loader_motor.isFwdLimitSwitchClosed()
 
     def setup(self):
-        self.loader_motor.setInverted(False)
+        self.loader_motor.setInverted(True)
         self.loader_motor.setNeutralMode(NeutralMode.Brake)
 
     def set_speed(self, speed):
