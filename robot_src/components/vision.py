@@ -4,7 +4,7 @@ from networktables import NetworkTables
 # from wpilib.command.subsystem import Subsystem
 import math
 from magicbot import feedback
-from .common import limit
+from .common import Buffer
 
 # import logging
 
@@ -23,6 +23,8 @@ CAM_RES_H = 320
 CAM_RES_V = 240
 FOV_RAD_H = 0.896376
 FOV_RAD_V = 0.74858
+
+VISION_NULLVALUE = -999
 
 
 class FROGVision:
@@ -43,11 +45,14 @@ class FROGVision:
         self.powerport_table = NetworkTables.getTable(POWERPORT_TABLE)
         self.powercell_table = NetworkTables.getTable(POWERCELL_TABLE)
         self.targeting_control = NetworkTables.getTable(CONTROL_TABLE)
+        self.powerport_error_x = Buffer(12)
+        self.powercell_error_x = Buffer(12)
+        self.powercell_error_y = Buffer(12)
 
     @feedback(key="PowerPort_x")
     def getPowerPortX(self):
         targetx = self.powerport_table.getNumber("center_x", None)
-        if targetx == -999:
+        if targetx == VISION_NULLVALUE:
             return None
         else:
             return targetx
@@ -55,7 +60,7 @@ class FROGVision:
     @feedback(key='PowerPort_y')
     def getPowerPortY(self):
         targety = self.powerport_table.getNumber("center_y", None)
-        if targety == -999:
+        if targety == VISION_NULLVALUE:
             return None
         else:
             return targety
@@ -63,7 +68,7 @@ class FROGVision:
     @feedback(key="PowerCell_x")
     def getPowerCellX(self):
         targetx = self.powercell_table.getNumber("center_x", None)
-        if targetx == -999:
+        if targetx == VISION_NULLVALUE:
             return None
         else:
             return targetx
@@ -71,12 +76,12 @@ class FROGVision:
     @feedback(key='PowerCell_y')
     def getPowerCellY(self):
         targety = self.powercell_table.getNumber("center_y", None)
-        if targety == -999:
+
+        if targety == VISION_NULLVALUE:
             return None
         else:
             return targety
 
-    @feedback(key='PowerPort_angle')
     def getPowerPortAngle(self):
 
         target_x = self.getPowerPortX()
@@ -94,30 +99,8 @@ class FROGVision:
     def getTargetDistance(self):
         pass
 
-    @feedback(key='PowerPort_rotation')
-    def getPowerPortRotation(self):
-
-        target_x = self.getPowerPortX()
-
-        if target_x:
-            rotation = (
-                limit(
-                    target_x - self.FOV_CENTER_H,
-                    -AZIMUTH_PIXEL_DECEL_LIMIT,
-                    AZIMUTH_PIXEL_DECEL_LIMIT,
-                )
-                / AZIMUTH_PIXEL_DECEL_LIMIT
-            )
-
-            return rotation
-        # (self.RAD_PER_PIX_H * (target_x - self.FOV_CENTER_H)) / (
-        # self.FOV_RAD_H / 2
-        # )
-        else:
-            return 0
-
-    @feedback(key='PowerPort_position')
-    def getPowerPortXError(self):
+    @feedback(key='PowerPortXError')
+    def calcPowerPortXError(self):
 
         target_x = self.getPowerPortX()
 
@@ -126,19 +109,33 @@ class FROGVision:
         else:
             return None
 
-    def getPowerCellXError(self):
+    def calcPowerCellXError(self):
         target_x = self.getPowerCellX()
         if target_x:
             return target_x - self.FOV_CENTER_H
         else:
             return None
 
-    def getPowerCellYError(self):
+    def calcPowerCellYError(self):
         target_y = self.getPowerCellY()
         if target_y:
             return CAM_RES_V - target_y
         else:
             return None
 
+    @feedback(key='PowerPortErrorX')
+    def getPowerPortErrorX(self):
+        return self.powerport_error_x.average()
+
+    @feedback(key='PowerCellErrorX')
+    def getPowerCellErrorX(self):
+        return self.powercell_error_x.average()
+
+    @feedback(key='PowerCellErrorY')
+    def getPowerCellErrorY(self):
+        return self.powercell_error_y.average()
+
     def execute(self):
-        pass
+        self.powerport_error_x.append(self.calcPowerPortXError())
+        self.powercell_error_x.append(self.calcPowerCellXError())
+        self.powercell_error_y.append(self.calcPowerCellYError())

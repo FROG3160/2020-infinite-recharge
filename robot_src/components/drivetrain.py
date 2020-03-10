@@ -10,6 +10,7 @@ from wpilib.drive import DifferentialDrive
 import math
 from .common import TalonPID, limit, remap
 from .vision import FROGVision
+from .shooter import Intake, Conveyor
 
 # from navx import AHRS
 # from .sensors import FROGGyro
@@ -62,6 +63,8 @@ class FROGDrive(DifferentialDrive):
     rightSlave: WPI_TalonFX
 
     vision: FROGVision
+    intake: Intake
+    conveyor: Conveyor
 
     control_mode = ControlMode.Position
     control_mode_str = tunable('None')
@@ -275,12 +278,23 @@ class FROGDrive(DifferentialDrive):
         self.reset_encoders()  # this is currently run in teleop_init, too
 
     def driveToTarget(self):
-        pc_x = self.vision.getPowerCellXError()
-        pc_y = self.vision.getPowerCellYError()
+        pc_x = self.vision.getPowerCellErrorX()
+        pc_y = self.vision.getPowerCellErrorY()
         if pc_x and pc_y:
-            rotate = remap(pc_x, -160, 160, -0.6, 0.6)
-            speed = remap(pc_y, 0, 240, 0.3, 1)
+            # if the error is less that 60 pixel from the bottom,
+            # we need to kick on the intake
+            if pc_y < 60:
+                self.intake.enable()
+                self.conveyor.enable()
+            else:
+                self.intake.disable()
+                self.conveyor.disable()
+            rotate = remap(pc_x, -160, 160, -0.5, 0.5)
+            speed = remap(pc_y, 0, 240, 0.3, 0.8)
             self.set_velocity(speed, rotate)
+        else:
+            self.intake.disable()
+            self.conveyor.disable()
 
     def execute(self):
         # set motor values
