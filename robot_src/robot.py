@@ -15,9 +15,10 @@ from components.shooter import (
     Intake,
 )
 from components.lift import Lift
-from components.sensors import FROGdar, FROGGyro
+from components.sensors import FROGdar, FROGGyro, LimitSwitch
 from components.led import FROGLED
 from components.vision import FROGVision
+from components.common import Buffer
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
@@ -165,9 +166,13 @@ class FROGbot(magicbot.MagicRobot):
             if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
                 self.loader.override = True
                 self.loader.enable()
+                self.conveyor.enable()
+                self.flywheel.enable()
             else:
                 self.loader.override = False
                 self.loader.disable()
+                self.conveyor.disable()
+                self.flywheel.disable()
 
             if self.gunner_stick.getAButtonPressed():
                 self.flywheel.toggleVelocityMode()
@@ -203,15 +208,23 @@ class FROGbot(magicbot.MagicRobot):
 
         self.chassis.reset_encoders()
         self.chassis.init_position_mode()
+        self.ledFunc = Buffer(3)
+        self.ledFunc.appendList([self.led.setRed, self.led.setBlue, self.led.setGreen])
+        self.dioTest = LimitSwitch(0)
 
     def testPeriodic(self):
-        self.loopcount += 1
-        if (self.loopcount % 300) < 100:
-            self.led.setRed()
-        elif (self.loopcount % 300) < 200:
-            self.led.setGreen()
-        else:
-            self.led.setBlue()
+
+        if self.dioTest.isOpen():
+            self.ledFunc[0]()
+            self.ledFunc.rotate()
+
+        # self.loopcount += 1
+        # if (self.loopcount % 300) < 100:
+        # self.led.setRed()
+        # elif (self.loopcount % 300) < 200:
+        # self.led.setGreen()
+        # else:
+        # self.led.setBlue()
 
         # self.led.setRainbow()
         pass
