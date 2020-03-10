@@ -23,6 +23,15 @@ class FROGLED(AddressableLED):
     def setFROGGreen(self):
         self.fillRGB((0, 217, 54))
 
+    def setRed(self):
+        self.fillRGB((255, 0, 0))
+
+    def setBlue(self):
+        self.fillRGB((0, 0, 255))
+
+    def setGreen(self):
+        self.fillRGB((0, 255, 0))
+
     def setRainbow(self):
         rainbow = i = 0
         for d in self.data:
