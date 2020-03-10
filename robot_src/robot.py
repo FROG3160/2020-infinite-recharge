@@ -80,6 +80,7 @@ class FROGbot(magicbot.MagicRobot):
 
         self.driverMode = NORMAL
         self.gunnerMode = NORMAL
+        self.loopcount = 0
 
     def getDriverInputs(self):
         # allow the driver to zero the gyro
@@ -104,6 +105,13 @@ class FROGbot(magicbot.MagicRobot):
         else:
             if self.drive_stick.getStickButton(RIGHTHAND):
                 self.chassis.driveToTarget()
+            elif (
+                abs(self.drive_stick.getX(RIGHTHAND)) > 0.1
+                or abs(self.drive_stick.getY(RIGHTHAND)) > 0.1
+            ):
+                self.chassis.driveToHeading(
+                    self.drive_stick.getX(RIGHTHAND), self.drive_stick.getY(RIGHTHAND)
+                )
             else:
 
                 self.chassis.set_velocity(
@@ -134,8 +142,8 @@ class FROGbot(magicbot.MagicRobot):
         elif self.gunnerMode == MANUAL:
             # the small button on the left
             if self.gunner_stick.getBackButton():
-                print("Back to NORMAL")
                 self.gunnerMode = NORMAL
+                self.azimuth.setAutomatic()
 
             if self.gunner_stick.get_debounced_POV() == 0:
                 self.flywheel.incrementSpeed()
@@ -169,6 +177,9 @@ class FROGbot(magicbot.MagicRobot):
             if self.gunner_stick.getBButtonPressed():
                 self.flywheel.disable()
 
+            if self.gunner_stick.getStickButtonPressed(LEFTHAND):
+                self.azimuth.resetEncoder()
+
             self.azimuth.setSpeed(self.gunner_stick.get_rotation())
             self.azimuth.enable()
             self.elevation.set_speed(self.gunner_stick.get_elevation())
@@ -186,7 +197,7 @@ class FROGbot(magicbot.MagicRobot):
         self.getDriverInputs()
         self.getGunnerInputs()
 
-        self.led.setRainbow()
+        self.led.setFROGGreen()
 
     def testInit(self):
 
@@ -194,6 +205,15 @@ class FROGbot(magicbot.MagicRobot):
         self.chassis.init_position_mode()
 
     def testPeriodic(self):
+        self.loopcount += 1
+        if (self.loopcount % 300) < 100:
+            self.led.setRed()
+        elif (self.loopcount % 300) < 200:
+            self.led.setGreen()
+        else:
+            self.led.setBlue()
+
+        # self.led.setRainbow()
         pass
 
 

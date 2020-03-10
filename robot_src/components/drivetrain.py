@@ -7,10 +7,11 @@ from ctre import (
     TalonFXInvertType,
 )
 from wpilib.drive import DifferentialDrive
-import math
+from math import copysign, atan2, sqrt, pi, degrees, radians
 from .common import TalonPID, limit, remap
 from .vision import FROGVision
 from .shooter import Intake, Conveyor
+from .sensors import FROGGyro
 
 # from navx import AHRS
 # from .sensors import FROGGyro
@@ -63,6 +64,7 @@ class FROGDrive(DifferentialDrive):
     rightSlave: WPI_TalonFX
 
     vision: FROGVision
+    gyro: FROGGyro
     intake: Intake
     conveyor: Conveyor
 
@@ -195,8 +197,8 @@ class FROGDrive(DifferentialDrive):
         # only set left and right control values if we are in VELOCITY_MODE
         if self.control_mode == VELOCITY_MODE:
             # square the input and keep the sign of the original value
-            speed = math.copysign(speed * speed, speed)
-            rotation = math.copysign(rotation * rotation, rotation)
+            speed = copysign(speed * speed, speed)
+            rotation = copysign(rotation * rotation, rotation)
 
             # TODO: decide if it's redundant to keep these values in
             # attributes.  This is done to place the value on network
@@ -206,7 +208,7 @@ class FROGDrive(DifferentialDrive):
 
             # determine the left and right wheel speed from the given
             # speed and rotation controls
-            maxInput = math.copysign(max(abs(speed), abs(rotation)), speed)
+            maxInput = copysign(max(abs(speed), abs(rotation)), speed)
             if speed >= 0.0:
 
                 if rotation >= 0.0:
@@ -295,6 +297,36 @@ class FROGDrive(DifferentialDrive):
         else:
             self.intake.disable()
             self.conveyor.disable()
+
+    def driveToHeading(self, x, y):
+        # x should be right positive
+        # y should be forward positive,
+
+        # get the magnitude of the vector
+        # formed by x and y for the speed:
+        speed = sqrt((abs(x) ** 2, abs(y) ** 2))
+
+        # since the robot intake is facing "backward"
+        # we are inverting X and Y for the driver
+        # to move the intake towards balls.
+        # TODO:  Look into inverting drivetrain motors
+        # instead.
+        desiredHeading = degrees(atan2(-x, -y))
+        actualHeading = self.gyro.getHeading()
+        # also because we "inverted" the heading for the driver
+        # this calculation needs to be inverted also:
+        turnDegrees = -((actualHeading - desiredHeading + 180) % 360 - 180)
+        # if turnDegrees > 90 in either direction, we need to just give max
+        # rotation and no forward/backward movement:
+
+        if abs(turnDegrees) > 90:
+            speed = 0
+            # full rotation indirection indicated by degree heading
+            rotation = copysign(1, turnDegrees)
+        else:
+            rotation = remap(turnDegrees, -90, 90, -1, 1)
+
+        self.set_velocity(speed, rotation)
 
     def execute(self):
         # set motor values
