@@ -8,12 +8,15 @@ from ctre import (
     NeutralMode,
     TalonFXInvertType,
 )
-from .common import TalonPID, limit
+from .common import TalonPID, limit, remap
 from magicbot import tunable, feedback, StateMachine, state, timed_state
 from .vision import FROGVision, CAM_RES_H
 from .sensors import FROGGyro, FROGdar
+from math import copysign, log
 
-AZIMUTH_PID = TalonPID(0, p=32)
+# AZIMUTH_PID = TalonPID(0, p=32) #worked for Position Control
+# AZIMUTH_PID = TalonPID(0, p=0, i=0, d=0, f=4.15)
+AZIMUTH_PID = TalonPID(0, p=2.8, i=0, d=28, f=4.15)
 ELEVATION_PID = TalonPID(0, p=32)
 FLYWHEEL_PID = TalonPID(0, p=0.4, f=0.0515)
 
@@ -30,6 +33,7 @@ FLYWHEEL_INCREMENT = 500  # increment for manually adjusting speed
 FLYWHEEL_VELOCITY_PORTAL = 14000
 FLYWHEEL_VELOCITY_LOB = 7000
 FLYWHEEL_VELOCITY_TOLERANCE = 500
+FLYWHEEL_LOOP_RAMP = 0.5
 
 # TODO: change over to Position Mode, or MM?
 ELEVATION_MODE = ControlMode.PercentOutput
@@ -38,8 +42,10 @@ ELEVATION_HIGH = 4500
 
 
 AZIMUTH_CENTER = 0
-AZIMUTH_LIMIT_RIGHT = 2700
-AZIMUTH_LIMIT_LEFT = -2700
+AZIMUTH_LIMIT_RIGHT = 2200
+AZIMUTH_LIMIT_LEFT = -2200
+AZIMUTH_MAX_SPEED = 300
+AZIMUTH_COUNTS_PER_DEGREE = AZIMUTH_LIMIT_RIGHT / 90
 AZIMUTH_AUTO_MOTOR_MODE = ControlMode.MotionMagic
 AZIMUTH_MANUAL_MOTOR_MODE = ControlMode.PercentOutput
 AZIMUTH_ENCODER_PER_H_FOV = 1180
@@ -48,7 +54,7 @@ AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
 
 INTAKE_SPEED = 0.4
 LOWER_CONVEYOR_SPEED = 0.5
-UPPER_CONVEYOR_SPEED = 0.2
+UPPER_CONVEYOR_SPEED = 0.5
 
 
 class Azimuth:
@@ -60,10 +66,16 @@ class Azimuth:
     def __init__(self):
         self.automatic = True
         self.motor_mode = AZIMUTH_AUTO_MOTOR_MODE
-        self.azimuth_command = tunable(0)
+        self.azimuth_command = 0
         self.enabled = False
         # self.chassisHeading = None
         # self.targetCenterX = None
+
+    def calcTurretSpeed(self, value):
+        # use a natural log function to calculate the
+        # motor percentage we need for the turret given
+        # the error we are off-target
+        return limit(0.277 * log(value) - 0.2339, 0, 1)
 
     def disable(self):
         self.enabled = False
@@ -78,9 +90,21 @@ class Azimuth:
             FeedbackDevice.IntegratedSensor
         )
 
-    def onTarget(self):
-        if (xError := self.vision.getPowerPortXError()) :
-            return abs(xError) <= AZIMUTH_TARGET_PIXEL_TOLERANCE
+    @feedback(key="Velocity")
+    def getVelocity(self):
+        return self.azimuth_motor.getSelectedSensorVelocity(
+            FeedbackDevice.IntegratedSensor
+        )
+
+    @feedback(key="Commanded")
+    def getCommanded(self):
+        return self.azimuth_command
+
+    def onTarget(self, x_error):
+        return abs(x_error) <= AZIMUTH_TARGET_PIXEL_TOLERANCE
+
+    def resetEncoder(self):
+        self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
 
     def setup(self):
         # this motor uses an attached Quad Encoder
@@ -91,7 +115,7 @@ class Azimuth:
         self.azimuth_motor.setInverted(False)
         self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
         # we start with the turret centered
-        self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
+        self.resetEncoder()
         # setting soft limits and enabling them
         self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
         self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
@@ -102,11 +126,18 @@ class Azimuth:
 
     def setPosition(self, value):
         # move to the given position
-        self.motor_mode = AZIMUTH_AUTO_MOTOR_MODE
+        self.motor_mode = ControlMode.Position
         self.azimuth_command = value
+
+    def setVelocity(self, rotation):
+        self.motor_mode = ControlMode.Velocity
+        self.azimuth_command = rotation * AZIMUTH_MAX_SPEED
 
     def setSpeed(self, speed):
         self.motor_mode = AZIMUTH_MANUAL_MOTOR_MODE
+        # if speed != 0:
+        # speed = copysign(limit(abs(speed), 0.20, 1), speed)
+        # self.azimuth_command = copysign(speed * speed, speed)
         self.azimuth_command = speed
 
     def setManual(self):
@@ -117,18 +148,35 @@ class Azimuth:
 
     def execute(self):
         if self.enabled:
+            #
             if self.automatic:
                 # check if the robot is pointed the right direction
                 if -90 <= self.gyro.getHeading() <= 90:
                     # if we already see the target, move to it
-                    if (pp_x := self.vision.getPowerPortXError()) :
-                        self.setPosition(pp_x * AZIMUTH_ENCODER_PER_PIXEL)
+
+                    if (x_error := self.vision.getPowerPortErrorX()) :
+                        if not self.onTarget(x_error):
+                            # self.setVelocity(remap(x_error, -160, 160, -1, 1))
+                            if x_error > 0:
+                                # self.setSpeed(remap(x_error, 0, 160, 0.38, 1))
+                                self.setSpeed(self.calcTurretSpeed(x_error))
+                            else:
+                                self.setSpeed(
+                                    copysign(
+                                        self.calcTurretSpeed(abs(x_error)), x_error
+                                    )
+                                )  # self.setPosition(x_error * AZIMUTH_ENCODER_PER_PIXEL)
+                        else:
+                            self.setSpeed(0)
                     # otherwise, move turret in direction of the target
                     else:
-                        self.setPosition(self.gyro.getHeading() * -30)
+                        self.setPosition(
+                            self.gyro.getHeading() * -AZIMUTH_COUNTS_PER_DEGREE
+                        )
                 # center the turret until we can move it to the target
                 else:
                     self.setPosition(AZIMUTH_CENTER)
+
             self.azimuth_motor.set(self.motor_mode, self.azimuth_command)
         else:
             self.azimuth_motor.set(0)
@@ -136,7 +184,7 @@ class Azimuth:
 
 class Conveyor:
     conveyor_motor: WPI_VictorSPX
-    conveyor_command = tunable(0.4)
+    conveyor_command = tunable(LOWER_CONVEYOR_SPEED)
 
     def __init__(self):
         self.enabled = False
@@ -285,6 +333,8 @@ class Flywheel:
         self.flywheel_motor.setNeutralMode(NeutralMode.Coast)
         self._PID.configTalon(self.flywheel_motor)
 
+        self.flywheel_motor.configClosedloopRamp(FLYWHEEL_LOOP_RAMP)
+
     def accelerate(self, vel):
         # accelerate Flywheel to the given velocity
         self._velocity = self._velocity + limit(
@@ -297,12 +347,18 @@ class Flywheel:
         self._controlMode = ControlMode.PercentOutput
         self._velocity = speed
 
+    def setVelocity(self, velocity):
+        self._controlMode = ControlMode.Velocity
+        self._velocity = velocity
+
     # adjust current velocity by defined increment
     def incrementSpeed(self):
         self._velocities[self._velocityMode] += FLYWHEEL_INCREMENT
+        self.setVelocity(self._velocities[self._velocityMode])
 
     def decrementSpeed(self):
         self._velocities[self._velocityMode] -= FLYWHEEL_INCREMENT
+        self.setVelocity(self._velocities[self._velocityMode])
 
     # switch between defined velocities
     def toggleVelocityMode(self):
@@ -315,7 +371,7 @@ class Flywheel:
         if self.enabled:
             # if self._velocity != self._velocities[self._velocityMode]:
             # self.accelerate(self._velocities[self._velocityMode])
-            self.flywheel_motor.set(self._controlMode, self._velocityTarget)
+            self.flywheel_motor.set(self._controlMode, self._velocity)
         else:
             self.flywheel_motor.set(0)
 
@@ -433,9 +489,9 @@ class FROGShooter(StateMachine):
     @state(first=True)
     def targeting(self):
         self.azimuth.enable()
-        self.elevation.enable()
-        if self.onTarget():
-            self.next_state('prepareToFire')
+        # self.elevation.enable()
+        # if self.onTarget():
+        # self.next_state('prepareToFire')
 
     @state()
     def prepareToFire(self):
