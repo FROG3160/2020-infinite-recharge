@@ -3,9 +3,18 @@ from magicbot import feedback, tunable
 from ctre import CANifier
 from navx import AHRS
 from .common import Buffer
+from wpilib import DigitalInput
 
 BUFFERLEN = 25  # half a second?
 SENSORUNITS_IN_INCHES = 0.0394
+
+
+class LimitSwitch(DigitalInput):
+    def __init__(self, dio):
+        super().__init__(dio)
+
+    def isOpen(self):
+        return self.get()
 
 
 class FROGdar:
