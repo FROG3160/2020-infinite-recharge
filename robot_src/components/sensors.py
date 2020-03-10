@@ -2,8 +2,9 @@ from collections import deque
 from magicbot import feedback, tunable
 from ctre import CANifier
 from navx import AHRS
+from .common import Buffer
 
-BUFFERLEN = 100
+BUFFERLEN = 25  # half a second?
 SENSORUNITS_IN_INCHES = 0.0394
 
 
@@ -13,7 +14,8 @@ class FROGdar:
     def __init__(self):
         self.enabled = False
         self.targetRange = None
-        self.rangeBuffer = deque(maxlen=BUFFERLEN)
+        self.rangeBuffer = Buffer(BUFFERLEN)
+        # self.rangeBuffer = deque(maxlen=BUFFERLEN)
 
     def disable(self):
         self.enabled = False
@@ -25,7 +27,10 @@ class FROGdar:
         self.enabled = True
 
     def isValidData(self):
-        return len(self.rangeBuffer) >= BUFFERLEN and not self.targetRange is None
+        return (
+            self.rangeBuffer.lengthFiltered() >= BUFFERLEN
+            and not self.targetRange is None
+        )
 
     @feedback(key='LIDAR')
     def getSensorData(self):
@@ -44,8 +49,8 @@ class FROGdar:
         if self.enabled:
             # stream data into our counter
             self.rangeBuffer.append(self.getSensorData())
-            if (bufferlen := len(self.rangeBuffer)) > 0:
-                self.targetRange = sum(self.rangeBuffer) / bufferlen
+            if self.rangeBuffer.lengthFiltered() > 0:
+                self.targetRange = self.rangeBuffer.average()
 
 
 class FROGGyro:
