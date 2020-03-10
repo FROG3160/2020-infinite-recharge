@@ -1,0 +1,13 @@
+pyfrc
+pyntcore
+robotpy-installer
+robotpy-ctre
+robotpy-hal
+robotpy-halsim-gui
+robotpy-rev
+robotpy-rev-color
+robotpy-wpiutil
+wpilib
+robotpy-wpilib-utilities
+pynetconsole
+pynetworktables
