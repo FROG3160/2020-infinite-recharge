@@ -14,7 +14,11 @@ class LimitSwitch(DigitalInput):
         super().__init__(dio)
 
     def isOpen(self):
+        # DigitalInput.get() returns True if signal line is open
         return self.get()
+
+    def isClosed(self):
+        return not self.get()
 
 
 class FROGdar:
