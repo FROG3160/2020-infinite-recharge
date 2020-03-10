@@ -75,12 +75,13 @@ class Lift:
         self.lift_command = speed
 
     def extend(self):
-        self.set_position(EXTENDED_POSITION_INCHES*LIFT_TICKS_PER_INCH)
+        self.set_position(EXTENDED_POSITION_INCHES * LIFT_TICKS_PER_INCH)
 
     def lift(self):
-        self.set_position(FINAL_POSITION_INCHES*LIFT_TICKS_PER_INCH)
+        self.set_position(FINAL_POSITION_INCHES * LIFT_TICKS_PER_INCH)
 
-    def retract()
+    def retract(self):
+        self.set_position(STARTING_POSITION_INCHES * LIFT_TICKS_PER_INCH)
 
     def execute(self):
         if self.enabled:
