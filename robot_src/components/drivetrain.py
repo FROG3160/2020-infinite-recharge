@@ -1,6 +1,6 @@
 from magicbot import tunable, feedback
 from ctre import (
-    WPI_TalonFX,
+    WPI_TalonSRX,
     ControlMode,
     NeutralMode,
     FeedbackDevice,
@@ -22,9 +22,10 @@ from .sensors import FROGGyro
 # from subsystems.common import PID
 
 # drivetrain characteristics
-FALCON_CPR = 2048
-ENCODER_TICKS_PER_REV = FALCON_CPR * 10.71  # motor ticks * gear reduction
-MAX_VELOCITY = 15000  # Falcons are maxing at 20k - 21k
+DEADBAND = 0.1
+FALCON_CPR = 4096
+ENCODER_TICKS_PER_REV = 4096  # motor ticks * gear reduction
+MAX_VELOCITY = 3000  # Falcons are maxing at 20k - 21k
 CLOSEDLOOPRAMP = 1.5
 WHEEL_DIAMETER = 6
 # TICKS_PER_INCH = 1149  #
@@ -33,7 +34,7 @@ TICKS_PER_ANGLE = 39270 / 180
 
 # PIDs for drivetrain
 # VelocityPID = TalonPID(slot=0, f=0.0482)
-VelocityPID = TalonPID(slot=0, f=0.049200058, p=0.0539999, d=6.0)
+VelocityPID = TalonPID(slot=0, f=0.313)
 # DiffDrivePID_calculated = TalonPID(slot=0, f=0.028998, p=0.031916)
 
 # PositionPID = TalonPID(slot=0, f=0.003, p=0.05)
@@ -51,17 +52,17 @@ POSITION_MODE = ControlMode.MotionMagic
 
 
 # Motion Magic settings
-MM_ACCELERATION = 10000  # 4000
-MM_CRUISE_VELOCITY = 10000  # 8000
+MM_ACCELERATION = 1000  # 4000
+MM_CRUISE_VELOCITY = 2000  # 8000
 
 
 class FROGDrive(DifferentialDrive):
 
     # drive motors (channels defined in robot.py)
-    leftMaster: WPI_TalonFX
-    rightMaster: WPI_TalonFX
-    leftSlave: WPI_TalonFX
-    rightSlave: WPI_TalonFX
+    leftMaster: WPI_TalonSRX
+    rightMaster: WPI_TalonSRX
+    leftSlave: WPI_TalonSRX
+    rightSlave: WPI_TalonSRX
 
     vision: FROGVision
     gyro: FROGGyro
@@ -150,10 +151,10 @@ class FROGDrive(DifferentialDrive):
         self.leftSlave.follow(self.leftMaster)
         self.rightSlave.follow(self.rightMaster)
         # configure motor outputs
-        self.leftMaster.setInverted(TalonFXInvertType.CounterClockwise)  # = false
-        self.leftSlave.setInverted(TalonFXInvertType.FollowMaster)
-        self.rightMaster.setInverted(TalonFXInvertType.Clockwise)  # = true
-        self.rightSlave.setInverted(TalonFXInvertType.FollowMaster)
+        self.leftMaster.setInverted(False)  # = false
+        self.leftSlave.setInverted(False)
+        self.rightMaster.setInverted(True)  # = true
+        self.rightSlave.setInverted(True)
         # configure neutral mode
         self.leftMaster.setNeutralMode(NeutralMode.Coast)
         self.rightMaster.setNeutralMode(NeutralMode.Coast)
@@ -162,7 +163,7 @@ class FROGDrive(DifferentialDrive):
         # configure encoders
         for controller in [self.leftMaster, self.rightMaster]:
             controller.configSelectedFeedbackSensor(
-                FeedbackDevice.IntegratedSensor, 0, 0
+                FeedbackDevice.CTRE_MagEncoder_Relative, 0, 0
             )
         # Reverses the encoder direction so forward movement always
         # results in a positive increase in the encoder ticks.
@@ -301,10 +302,15 @@ class FROGDrive(DifferentialDrive):
     def driveToHeading(self, x, y):
         # x should be right positive
         # y should be forward positive,
+        print(x, y)
+        if x < DEADBAND:
+            x = 0
+        if y < DEADBAND:
+            y = 0
 
         # get the magnitude of the vector
         # formed by x and y for the speed:
-        speed = sqrt((abs(x) ** 2, abs(y) ** 2))
+        speed = sqrt(abs(x) ** 2 + abs(y) ** 2)
 
         # since the robot intake is facing "backward"
         # we are inverting X and Y for the driver
@@ -319,13 +325,13 @@ class FROGDrive(DifferentialDrive):
         # if turnDegrees > 90 in either direction, we need to just give max
         # rotation and no forward/backward movement:
 
-        if abs(turnDegrees) > 90:
+        if abs(turnDegrees) > 45:
             speed = 0
             # full rotation indirection indicated by degree heading
-            rotation = copysign(1, turnDegrees)
+            rotation = copysign(0.4, turnDegrees)
         else:
-            rotation = remap(turnDegrees, -90, 90, -1, 1)
-
+            rotation = remap(turnDegrees, -45, 45, -0.5, 0.5)
+        speed = remap(speed, -1, 1, -0.7, 0.7)
         self.set_velocity(speed, rotation)
 
     def execute(self):

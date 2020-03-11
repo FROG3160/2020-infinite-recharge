@@ -50,10 +50,10 @@ class FROGbot(magicbot.MagicRobot):
     def createObjects(self):
         """Create motors and inputs"""
         # chassis components
-        self.leftMaster = WPI_TalonFX(11)
-        self.rightMaster = WPI_TalonFX(12)
-        self.leftSlave = WPI_TalonFX(13)
-        self.rightSlave = WPI_TalonFX(14)
+        self.leftMaster = WPI_TalonSRX(1)
+        self.rightMaster = WPI_TalonSRX(2)
+        self.leftSlave = WPI_TalonSRX(3)
+        self.rightSlave = WPI_TalonSRX(4)
 
         self.intake_motor = WPI_VictorSPX(21)
         self.conveyor_motor = WPI_VictorSPX(22)
@@ -106,18 +106,15 @@ class FROGbot(magicbot.MagicRobot):
         else:
             if self.drive_stick.getStickButton(RIGHTHAND):
                 self.chassis.driveToTarget()
-            elif (
-                abs(self.drive_stick.getX(RIGHTHAND)) > 0.1
-                or abs(self.drive_stick.getY(RIGHTHAND)) > 0.1
-            ):
-                self.chassis.driveToHeading(
-                    self.drive_stick.getX(RIGHTHAND), self.drive_stick.getY(RIGHTHAND)
-                )
             else:
-
-                self.chassis.set_velocity(
-                    self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+                self.chassis.driveToHeading(
+                    self.drive_stick.getX(LEFTHAND), self.drive_stick.getY(LEFTHAND)
                 )
+            # else:
+
+            # self.chassis.set_velocity(
+            # self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+            # )
 
     def getGunnerInputs(self):
 
