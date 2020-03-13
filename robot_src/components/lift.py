@@ -5,8 +5,7 @@ from magicbot import tunable, feedback
 
 LIFT_PID = TalonPID(0, p=0.3)
 LIFT_MODE = ControlMode.Position
-LIFT_HIGH = 0
-LIFT_LOW = 0
+
 FEEDBACK_DEVICE = FeedbackDevice.CTRE_MagEncoder_Relative
 LIFT_TICKS_PER_REVOLUTION = 4096
 LIFT_REVOLUTIONS_PER_INCH = 2
@@ -14,6 +13,10 @@ LIFT_TICKS_PER_INCH = LIFT_TICKS_PER_REVOLUTION * LIFT_REVOLUTIONS_PER_INCH
 STARTING_POSITION_INCHES = 0
 EXTENDED_POSITION_INCHES = 30
 FINAL_POSITION_INCHES = 15
+SOFT_LIMIT = 1024
+
+LIFT_HIGH = EXTENDED_POSITION_INCHES * LIFT_TICKS_PER_INCH
+LIFT_LOW = 0
 
 
 class Lift:
@@ -58,8 +61,8 @@ class Lift:
             # starting value for the encoder
             motor_controller.setSelectedSensorPosition(LIFT_HIGH, 0, 0)
             # setting soft limits
-            motor_controller.configForwardSoftLimitThreshold(LIFT_HIGH - 100, 0)
-            motor_controller.configReverseSoftLimitThreshold(LIFT_LOW + 100, 0)
+            motor_controller.configForwardSoftLimitThreshold(LIFT_HIGH - SOFT_LIMIT, 0)
+            motor_controller.configReverseSoftLimitThreshold(LIFT_LOW + SOFT_LIMIT, 0)
             motor_controller.configForwardSoftLimitEnable(True, 0)
             motor_controller.configReverseSoftLimitEnable(True, 0)
             # setting the PID
