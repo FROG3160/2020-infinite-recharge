@@ -1,11 +1,17 @@
-from collections import deque
-from magicbot import feedback, tunable
+from magicbot import feedback
 from ctre import CANifier
 from navx import AHRS
 from .common import Buffer
 from wpilib import DigitalInput
 
-BUFFERLEN = 25  # half a second?
+# if we are getting a reading every 20ms loop, then a
+# buffer of 50 should be a second's worth of data.
+# increase this if the values jump around too much,
+# decrease if it's not reacting to change fast enough.
+BUFFERLEN = 50
+
+# the LIDAR readings are in microseconds, and 10 microseconds = 1 cm.
+# therefore .394 in/cm * 1 cm/10 microseconds =
 SENSORUNITS_IN_INCHES = 0.0394
 
 
@@ -28,14 +34,12 @@ class FROGdar:
         self.enabled = False
         self.targetRange = None
         self.rangeBuffer = Buffer(BUFFERLEN)
-        # self.rangeBuffer = deque(maxlen=BUFFERLEN)
 
     def disable(self):
         self.enabled = False
 
     def enable(self):
         # clear range data to get fresh information
-        self.targetRange = None
         self.rangeBuffer.clear()
         self.enabled = True
 
@@ -45,18 +49,21 @@ class FROGdar:
             and not self.targetRange is None
         )
 
-    @feedback(key='LIDAR')
+    @feedback(key='raw')
     def getSensorData(self):
-
         errorcode, (val1, val2) = self.pwm_sensor.getPWMInput(
             CANifier.PWMChannel.PWMChannel0
         )
         return val1
 
+    @feedback(key='buffered')
+    def getBufferedSensorData(self):
+        return self.rangeBuffer.average()
+
     @feedback(key="distance")
     def getDistance(self):
         if self.isValidData():
-            return self.targetRange * SENSORUNITS_IN_INCHES
+            return self.getBufferedSensorData() * SENSORUNITS_IN_INCHES
 
     def execute(self):
         if self.enabled:
@@ -71,10 +78,14 @@ class FROGGyro:
         self.gyro = AHRS.create_spi()
         self.gyro.reset()
 
-    @feedback(key='Heading')
+    @feedback(key='heading')
     def getHeading(self):
         # returns gyro heading +180 to -180 degrees
         return self.gyro.getYaw()
 
     def resetGyro(self):
+        # sets yaw reading to 0
         self.gyro.reset()
+
+    def execute(self):
+        pass
