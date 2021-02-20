@@ -54,8 +54,8 @@ AZIMUTH_ENCODER_PER_PIXEL = AZIMUTH_ENCODER_PER_H_FOV / CAM_RES_H
 AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
 
 INTAKE_SPEED = 0.45
-LOWER_CONVEYOR_SPEED = 0.5
-UPPER_CONVEYOR_SPEED = 1
+LOWER_CONVEYOR_SPEED = 0.25
+UPPER_CONVEYOR_SPEED = 0.25
 
 
 class Azimuth:
@@ -415,7 +415,7 @@ class Intake:
 
 
 class Loader:
-    loader_motor: WPI_TalonSRX
+    loader_motor: WPI_TalonFX
     loader_command = UPPER_CONVEYOR_SPEED
 
     def __init__(self):
