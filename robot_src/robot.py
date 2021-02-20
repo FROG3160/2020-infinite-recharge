@@ -11,10 +11,10 @@ from components.shooter import (
     Elevation,
     Flywheel,
     Loader,
-    Conveyor,
-    Intake,
+    #Conveyor,
+    #Intake,
 )
-from components.lift import Lift
+#from components.lift import Lift
 from components.sensors import FROGdar, FROGGyro, LimitSwitch
 from components.led import FROGLED
 from components.vision import FROGVision
@@ -43,9 +43,9 @@ class FROGbot(magicbot.MagicRobot):
     elevation: Elevation
     flywheel: Flywheel
     loader: Loader
-    conveyor: Conveyor
-    intake: Intake
-    lift: Lift
+    #conveyor: Conveyor
+    #intake: Intake
+    #lift: Lift
     vision: FROGVision
 
     def createObjects(self):
@@ -56,9 +56,9 @@ class FROGbot(magicbot.MagicRobot):
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
 
-        self.intake_motor = WPI_VictorSPX(21)
-        self.conveyor_motor = WPI_VictorSPX(22)
-        self.loader_motor = WPI_TalonSRX(23)
+        #self.intake_motor = WPI_VictorSPX(21)
+        #self.conveyor_motor = WPI_VictorSPX(22)
+        self.loader_motor = WPI_TalonFX(23)
 
         self.azimuth_motor = WPI_TalonSRX(31)
         self.elevation_motor = WPI_TalonSRX(32)
@@ -168,16 +168,18 @@ class FROGbot(magicbot.MagicRobot):
 
             # runs the belts using the bumpers
             if self.gunner_stick.getBumper(RIGHTHAND):
-                self.conveyor.enable()
-
-            if self.gunner_stick.getBumper(LEFTHAND):
-                self.intake.enable()
-
-            if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
                 self.loader.override = True
                 self.loader.enable()
-                self.intake.enable()
-                self.conveyor.enable()
+                #self.conveyor.enable()
+
+            #if self.gunner_stick.getBumper(LEFTHAND):
+            #    self.intake.enable()
+
+            if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
+                #self.loader.override = True
+                #self.loader.enable()
+                #self.intake.enable()
+                #self.conveyor.enable()
                 self.flywheel.enable()
             else:
                 self.loader.override = False
@@ -197,10 +199,10 @@ class FROGbot(magicbot.MagicRobot):
             if self.gunner_stick.getStickButtonPressed(LEFTHAND):
                 self.azimuth.resetEncoder()
 
-            self.azimuth.setSpeed(self.gunner_stick.get_rotation())
-            self.azimuth.enable()
-            self.elevation.set_speed(self.gunner_stick.get_elevation())
-            self.elevation.enable()
+            #self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+            #self.azimuth.enable()
+            #self.elevation.set_speed(self.gunner_stick.get_elevation())
+            #self.elevation.enable()
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
