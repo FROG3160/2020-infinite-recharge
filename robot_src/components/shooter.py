@@ -1,4 +1,4 @@
-'''Intake and shooter components'''
+"""Intake and shooter components"""
 from ctre import (
     WPI_TalonFX,
     WPI_TalonSRX,
@@ -55,7 +55,7 @@ AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
 
 INTAKE_SPEED = 0.45
 LOWER_CONVEYOR_SPEED = 0.25
-UPPER_CONVEYOR_SPEED = 0.25
+LOADER_SPEED = 0.50
 
 
 class Azimuth:
@@ -85,7 +85,7 @@ class Azimuth:
         self.enabled = True
 
     # read current encoder position
-    @feedback(key='Position')
+    @feedback(key="Position")
     def getPosition(self):
         return self.azimuth_motor.getSelectedSensorPosition(
             FeedbackDevice.IntegratedSensor
@@ -196,7 +196,7 @@ class Conveyor:
     def enable(self):
         self.enabled = True
 
-    @feedback(key='Percent')
+    @feedback(key="Percent")
     def get_speed(self):
         return self.conveyor_motor.get()
 
@@ -233,7 +233,7 @@ class Elevation:
         self.enabled = True
 
     # read current encoder position
-    @feedback(key='position')
+    @feedback(key="position")
     def get_position(self):
         return self.elevation_motor.getSelectedSensorPosition(
             FeedbackDevice.IntegratedSensor
@@ -278,7 +278,7 @@ class Elevation:
     def setAutomatic(self):
         self.automated = True
 
-    @feedback(key='calculated_position')
+    @feedback(key="calculated_position")
     def calcPosition(self):
         if (inches := self.lidar.getDistance()) :
             return 25199 * inches ** -0.476
@@ -303,15 +303,15 @@ class Flywheel:
         self.enabled = False
         self._controlMode = FLYWHEEL_MODE
         # defines the two velocities we'll use for our FeedbackDevice
-        self._velocityModes = ['PORTAL', 'LOB']
+        self._velocityModes = ["PORTAL", "LOB"]
         # the initial velocity we'll use.
-        self._velocityMode = 'PORTAL'
+        self._velocityMode = "PORTAL"
 
         # sets the values for the two defined velocities
         self._velocities = {}
-        self._velocities['LOB'] = FLYWHEEL_VELOCITY_LOB
-        self._velocities['PORTAL'] = FLYWHEEL_VELOCITY_PORTAL
-        self._velocity = self._velocities['PORTAL']
+        self._velocities["LOB"] = FLYWHEEL_VELOCITY_LOB
+        self._velocities["PORTAL"] = FLYWHEEL_VELOCITY_PORTAL
+        self._velocity = self._velocities["PORTAL"]
 
     def disable(self):
         self.enabled = False
@@ -327,13 +327,13 @@ class Flywheel:
         )
 
     # read current encoder velocity
-    @feedback(key='velocity')
+    @feedback(key="velocity")
     def getVelocity(self):
         return self.flywheel_motor.getSelectedSensorVelocity(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback(key='commanded')
+    @feedback(key="commanded")
     def getCommandedVelocity(self):
         return self._velocity
 
@@ -372,7 +372,7 @@ class Flywheel:
     def toggleVelocityMode(self):
         # True = 1, so if expression is true, second element
         # in list is selected.
-        self._velocityMode = self._velocityModes[self._velocityMode == 'PORTAL']
+        self._velocityMode = self._velocityModes[self._velocityMode == "PORTAL"]
         self.setVelocity(self._velocities[self._velocityMode])
 
     def execute(self):
@@ -396,7 +396,7 @@ class Intake:
     def enable(self):
         self.enabled = True
 
-    @feedback(key='Percent')
+    @feedback(key="Percent")
     def get_speed(self):
         return self.intake_motor.get()
 
@@ -416,53 +416,44 @@ class Intake:
 
 class Loader:
     loader_motor: WPI_TalonFX
-    loader_command = UPPER_CONVEYOR_SPEED
+    loader_command = LOADER_SPEED
 
     def __init__(self):
-        self.enabled = False
-        self.override = False
+        self.loader_motor.setInverted(False)
+        self.loader_motor.setNeutralMode(NeutralMode.Brake)
+        self.disable()
 
     def disable(self):
         self.enabled = False
-        self.override = False
 
     def enable(self):
         self.enabled = True
 
-    def override(self):
-        ''' Enables an override of the limit switch checks to allow
-        the motor to run even without any balls in the system'''
-        self.override = True
-
-    @feedback(key='Percent')
+    @feedback(key="Speed")
     def get_speed(self):
         return self.loader_motor.get()
 
-    @feedback(key='LowerSwitchEnabled')
+    # turn boolean into string to display on dashboard
+    @feedback(key="LowerSwitchEnabled")
     def get_lower_switch_str(self):
         return str(self.get_lower_switch())
 
     def get_lower_switch(self):
         return self.loader_motor.isRevLimitSwitchClosed()
 
-    @feedback
+    # turn boolean into string to display on dashboard
+    @feedback(key="UpperSwitchEnabled")
     def get_upper_switch_str(self):
         return str(self.get_upper_switch())
 
     def get_upper_switch(self):
         return self.loader_motor.isFwdLimitSwitchClosed()
 
-    def setup(self):
-        self.loader_motor.setInverted(True)
-        self.loader_motor.setNeutralMode(NeutralMode.Brake)
-
     def set_speed(self, speed):
         self.loader_command = speed
 
     def execute(self):
-        if self.enabled and self.get_lower_switch() and not self.get_upper_switch():
-            self.loader_motor.set(ControlMode.PercentOutput, self.loader_command)
-        elif self.override:
+        if self.enabled:
             self.loader_motor.set(ControlMode.PercentOutput, self.loader_command)
         else:
             self.loader_motor.set(0)
@@ -497,7 +488,7 @@ class FROGShooter(StateMachine):
     @state()
     def readyToLoad(self):
         if self.drive_stick.getBumperPressed(LEFTHAND):
-            self.next_state('runIntake')
+            self.next_state("runIntake")
 
     def runIntake(self, duration=1):
         self.intake.enable()
@@ -511,7 +502,7 @@ class FROGShooter(StateMachine):
                 pass
         else:
             self.flywheel.disable()
-            self.next_state('targeting')
+            self.next_state("targeting")
 
     @timed_state(duration=1, must_finish=True)
     def firing(self):
