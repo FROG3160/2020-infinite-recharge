@@ -244,7 +244,7 @@ class Elevation:
     def setup(self):
         # this method exists to re-initialze the configuration
         # of the motor controller if needed.
-        
+
         # this motor uses an attached Quad Encoder
         self.elevation_motor.configSelectedFeedbackSensor(
             FeedbackDevice.QuadEncoder, 0, 0
@@ -276,13 +276,6 @@ class Elevation:
 
     def setAutomatic(self):
         self.automated = True
-
-    @feedback(key="calculated_position")
-    def calcPosition(self):
-        if (inches := self.lidar.getDistance()):
-            return 25199 * inches ** -0.476
-        else:
-            return None
 
 
 class Flywheel:
