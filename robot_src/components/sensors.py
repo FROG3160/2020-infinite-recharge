@@ -58,7 +58,7 @@ class FROGdar:
 
     @feedback(key='buffered')
     def getBufferedSensorData(self):
-        return self.rangeBuffer.average()
+        return self.targetRange
 
     @feedback(key="distance")
     def getDistance(self):
@@ -71,6 +71,11 @@ class FROGdar:
             self.rangeBuffer.append(self.getSensorData())
             if self.rangeBuffer.lengthFiltered() > 0:
                 self.targetRange = self.rangeBuffer.average()
+            else:
+                self.targetRange = None
+        else:
+            self.rangeBuffer.clear() 
+            self.targetRange = None
 
 
 class FROGGyro:
