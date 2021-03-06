@@ -57,26 +57,31 @@ INTAKE_SPEED = 0.45
 LOWER_CONVEYOR_SPEED = 0.25
 LOADER_SPEED = 0.50
 
-
 class Azimuth:
     _PID = AZIMUTH_PID
     azimuth_motor: WPI_TalonSRX
-    gyro: FROGGyro
-    vision: FROGVision
 
     def __init__(self):
-        self.automatic = False
-        self.motor_mode = AZIMUTH_AUTO_MOTOR_MODE
+        self.azimuth_mode = AZIMUTH_AUTO_MOTOR_MODE
         self.azimuth_command = 0
         self.enabled = False
+        self.azimuth_motor.configSelectedFeedbackSensor(
+            FeedbackDevice.QuadEncoder, 0, 0
+        )
+        self.azimuth_motor.setSensorPhase(False)
+        self.azimuth_motor.setInverted(False)
+        self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
+        # we start with the turret centered
+        self.resetEncoder()
+        # setting soft limits and enabling them
+        self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
+        self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
+        self.azimuth_motor.configForwardSoftLimitEnable(True, 0)
+        self.azimuth_motor.configReverseSoftLimitEnable(True, 0)
+        # set PID
+        self._PID.configTalon(self.azimuth_motor)
         # self.chassisHeading = None
         # self.targetCenterX = None
-
-    def calcTurretSpeed(self, value):
-        # use a natural log function to calculate the
-        # motor percentage we need for the turret given
-        # the error we are off-target
-        return limit(0.277 * log(value) - 0.2339, 0, 1)
 
     def disable(self):
         self.enabled = False
@@ -101,85 +106,27 @@ class Azimuth:
     def getCommanded(self):
         return self.azimuth_command
 
-    def onTarget(self, x_error):
-        return abs(x_error) <= AZIMUTH_TARGET_PIXEL_TOLERANCE
-
     def resetEncoder(self):
         self.azimuth_motor.setSelectedSensorPosition(AZIMUTH_CENTER, 0, 0)
 
-    def setup(self):
-        # this motor uses an attached Quad Encoder
-        self.azimuth_motor.configSelectedFeedbackSensor(
-            FeedbackDevice.QuadEncoder, 0, 0
-        )
-        self.azimuth_motor.setSensorPhase(False)
-        self.azimuth_motor.setInverted(False)
-        self.azimuth_motor.setNeutralMode(NeutralMode.Brake)
-        # we start with the turret centered
-        self.resetEncoder()
-        # setting soft limits and enabling them
-        self.azimuth_motor.configForwardSoftLimitThreshold(AZIMUTH_LIMIT_RIGHT, 0)
-        self.azimuth_motor.configReverseSoftLimitThreshold(AZIMUTH_LIMIT_LEFT, 0)
-        self.azimuth_motor.configForwardSoftLimitEnable(True, 0)
-        self.azimuth_motor.configReverseSoftLimitEnable(True, 0)
-        # set PID
-        self._PID.configTalon(self.azimuth_motor)
-
     def setPosition(self, value):
         # move to the given position
-        self.motor_mode = ControlMode.Position
+        self.azimuth_mode = ControlMode.Position
         self.azimuth_command = value
 
     def setVelocity(self, rotation):
-        self.motor_mode = ControlMode.Velocity
+        self.azimuth_mode = ControlMode.Velocity
         self.azimuth_command = rotation * AZIMUTH_MAX_SPEED
 
     def setSpeed(self, speed):
-        self.motor_mode = AZIMUTH_MANUAL_MOTOR_MODE
-        # if speed != 0:
-        # speed = copysign(limit(abs(speed), 0.20, 1), speed)
-        # self.azimuth_command = copysign(speed * speed, speed)
+        self.azimuth_mode = AZIMUTH_MANUAL_MOTOR_MODE
         self.azimuth_command = speed
-
-    def setManual(self):
-        self.automatic = False
-
-    def setAutomatic(self):
-        self.automatic = True
 
     def execute(self):
         if self.enabled:
-            #
-            if self.automatic:
-                # check if the robot is pointed the right direction
-                if -90 <= self.gyro.getHeading() <= 90:
-                    # if we already see the target, turn towards it.
-                    # positive x_error = target to the right
-                    if (x_error := self.vision.getPowerPortErrorX()) :
-                        if not self.onTarget(x_error):
-                            if x_error > 0:
-                                # turn to right
-                                self.setVelocity(remap(x_error, 0, 160, 0.08, 1))
-                            else:
-                                # turn to left
-                                self.setVelocity(remap(x_error, -160, 0, -1, -0.08))
-                        else:
-                            self.setSpeed(0)
-                    # otherwise, move turret in direction of the target
-                    else:
-                        # move the turret to point back downfield in the
-                        # direction of the target
-                        self.setPosition(
-                            self.gyro.getHeading() * -AZIMUTH_COUNTS_PER_DEGREE
-                        )
-                # center the turret until we can move it to the target
-                else:
-                    self.setPosition(AZIMUTH_CENTER)
-
-            self.azimuth_motor.set(self.motor_mode, self.azimuth_command)
+            self.azimuth_motor.set(self.azimuth_mode, self.azimuth_command)
         else:
             self.azimuth_motor.set(0)
-
 
 class Conveyor:
     conveyor_motor: WPI_VictorSPX
