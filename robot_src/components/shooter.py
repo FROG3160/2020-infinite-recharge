@@ -220,11 +220,10 @@ class Elevation:
 
     def __init__(self):
         self.disable()
-        self.setManual()
         self.setup()
         self.elevation_mode = ELEVATION_MODE
         self.elevation_command = tunable(0)
-    
+
     def enable(self):
         self.enabled = True
 
@@ -271,11 +270,11 @@ class Elevation:
         self.elevation_mode = ControlMode.PercentOutput
         self.elevation_command = speed
 
-    def setManual(self):
-        self.automated = False
-
-    def setAutomatic(self):
-        self.automated = True
+    def execute(self):
+        if self.enabled:
+            self.elevation_motor.set(self.elevation_mode, self.elevation_command)
+        else:
+            self.elevation_motor.set(0)
 
 
 class Flywheel:
