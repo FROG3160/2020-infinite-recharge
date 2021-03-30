@@ -46,7 +46,7 @@ class FROGdar:
     def isValidData(self):
         return (
             self.rangeBuffer.lengthFiltered() >= BUFFERLEN
-            and not self.targetRange is None
+            and self.targetRange is not None
         )
 
     @feedback(key='raw')
