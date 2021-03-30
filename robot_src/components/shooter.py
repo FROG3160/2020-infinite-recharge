@@ -16,9 +16,12 @@ from math import copysign, log
 from .driverstation import FROGXboxGunner, FROGXboxDriver, LEFTHAND, RIGHTHAND
 
 
-AZIMUTH_PID = TalonPID(0, p=1.3, d=3.1, f=3.1)
+# AZIMUTH_PID = TalonPID(0, p=1.3, d=3.1, f=3.1)
+# AZIMUTH_PID = TalonPID(0, p=8.4, i=0.09, d=0, f=0)  #4.87
+AZIMUTH_PID = TalonPID(0, p=0, i=0, d=0, f=4.4)
 ELEVATION_PID = TalonPID(0, p=32)
 FLYWHEEL_PID = TalonPID(0, p=0.4, f=0.0515)
+LOADER_PID = TalonPID(0, p=0.05, i=0, d=0, f=0.045)
 
 NEVEREST_CPR = 7 * 60  # motor ticks (counts) per rev. * gear reduction
 FALCON_CPR = 2048
@@ -41,14 +44,16 @@ ELEVATION_MODE = ControlMode.PercentOutput
 ELEVATION_LOW = 0
 ELEVATION_HIGH = 4500
 
-
+# TODO: get new azimuth position limits and speed max
 AZIMUTH_CENTER = 0
-AZIMUTH_LIMIT_RIGHT = 2200
-AZIMUTH_LIMIT_LEFT = -2200
-AZIMUTH_MAX_SPEED = 250
+AZIMUTH_LIMIT_RIGHT = 1680
+AZIMUTH_LIMIT_LEFT = -1680
+AZIMUTH_MAX_SPEED = 210
+# TODO: figure out minimum speed
+AZIMUTH_MIN_SPEED = 25
 AZIMUTH_COUNTS_PER_DEGREE = AZIMUTH_LIMIT_RIGHT / 90
 AZIMUTH_AUTO_MOTOR_MODE = ControlMode.MotionMagic
-AZIMUTH_MANUAL_MOTOR_MODE = ControlMode.PercentOutput
+AZIMUTH_MANUAL_MOTOR_MODE = ControlMode.Velocity
 AZIMUTH_ENCODER_PER_H_FOV = 1180
 AZIMUTH_ENCODER_PER_PIXEL = AZIMUTH_ENCODER_PER_H_FOV / CAM_RES_H
 AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
@@ -56,6 +61,7 @@ AZIMUTH_TARGET_PIXEL_TOLERANCE = 5
 INTAKE_SPEED = 0.45
 LOWER_CONVEYOR_SPEED = 0.25
 LOADER_SPEED = 0.50
+
 
 class Azimuth:
     _PID = AZIMUTH_PID
@@ -65,6 +71,8 @@ class Azimuth:
         self.azimuth_mode = AZIMUTH_AUTO_MOTOR_MODE
         self.azimuth_command = 0
         self.enabled = False
+
+    def setup(self):
         self.azimuth_motor.configSelectedFeedbackSensor(
             FeedbackDevice.QuadEncoder, 0, 0
         )
@@ -80,29 +88,30 @@ class Azimuth:
         self.azimuth_motor.configReverseSoftLimitEnable(True, 0)
         # set PID
         self._PID.configTalon(self.azimuth_motor)
-        # self.chassisHeading = None
-        # self.targetCenterX = None
+        self.chassisHeading = None
+        self.targetCenterX = None
 
     def disable(self):
         self.enabled = False
 
     def enable(self):
+        self.stop()
         self.enabled = True
 
     # read current encoder position
-    @feedback(key="Position")
+    @feedback(key="AzimuthPosition")
     def getPosition(self):
         return self.azimuth_motor.getSelectedSensorPosition(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback(key="Velocity")
+    @feedback(key="AzimuthVelocity")
     def getVelocity(self):
         return self.azimuth_motor.getSelectedSensorVelocity(
             FeedbackDevice.IntegratedSensor
         )
 
-    @feedback(key="Commanded")
+    @feedback(key="AzimuthCommanded")
     def getCommanded(self):
         return self.azimuth_command
 
@@ -114,51 +123,18 @@ class Azimuth:
         self.azimuth_mode = ControlMode.Position
         self.azimuth_command = value
 
-    def setVelocity(self, rotation):
+    def setVelocity(self, speed):
         self.azimuth_mode = ControlMode.Velocity
-        self.azimuth_command = rotation * AZIMUTH_MAX_SPEED
+        self.azimuth_command = speed * AZIMUTH_MAX_SPEED
 
-    def setSpeed(self, speed):
-        self.azimuth_mode = AZIMUTH_MANUAL_MOTOR_MODE
-        self.azimuth_command = speed
+    def stop(self):
+        self.setVelocity(0)
 
     def execute(self):
         if self.enabled:
             self.azimuth_motor.set(self.azimuth_mode, self.azimuth_command)
         else:
-            self.azimuth_motor.set(0)
-
-class Conveyor:
-    conveyor_motor: WPI_VictorSPX
-    front_limit = LimitSwitch
-    rear_limit = LimitSwitch
-    conveyor_command = LOWER_CONVEYOR_SPEED
-
-    def __init__(self):
-        self.enabled = False
-
-    def disable(self):
-        self.enabled = False
-
-    def enable(self):
-        self.enabled = True
-
-    @feedback(key="Percent")
-    def get_speed(self):
-        return self.conveyor_motor.get()
-
-    def setup(self):
-        self.conveyor_motor.setInverted(True)
-        self.conveyor_motor.setNeutralMode(NeutralMode.Brake)
-
-    def set_speed(self, speed):
-        self.conveyor_command = speed
-
-    def execute(self):
-        if self.enabled:
-            self.conveyor_motor.set(ControlMode.PercentOutput, self.conveyor_command)
-        else:
-            self.conveyor_motor.set(0)
+            self.stop()
 
 
 class Elevation:
@@ -167,11 +143,12 @@ class Elevation:
 
     def __init__(self):
         self.disable()
-        self.setup()
+        # self.setup()
         self.elevation_mode = ELEVATION_MODE
         self.elevation_command = tunable(0)
 
     def enable(self):
+        self.stop()
         self.enabled = True
 
     def disable(self):
@@ -208,20 +185,23 @@ class Elevation:
         # setting the PID
         self._PID.configTalon(self.elevation_motor)
 
-    def set_position(self, value):
+    def setPosition(self, value):
         # move to the given position
         self.elevation_mode = ControlMode.Position
         self.elevation_command = value
 
-    def set_speed(self, speed):
+    def setSpeed(self, speed):
         self.elevation_mode = ControlMode.PercentOutput
         self.elevation_command = speed
+
+    def stop(self):
+        self.elevation_motor.set(0)
 
     def execute(self):
         if self.enabled:
             self.elevation_motor.set(self.elevation_mode, self.elevation_command)
         else:
-            self.elevation_motor.set(0)
+            self.stop()
 
 
 class Flywheel:
@@ -344,12 +324,13 @@ class Intake:
 
 
 class Loader:
+    _PID = LOADER_PID
     loader_motor: WPI_TalonFX
     loader_command = LOADER_SPEED
 
     def __init__(self):
-        self.loader_motor.setInverted(False)
-        self.loader_motor.setNeutralMode(NeutralMode.Brake)
+        # self.loader_motor.setInverted(False)
+        # self.loader_motor.setNeutralMode(NeutralMode.Brake)
         self.enabled = False
 
     def disable(self):
@@ -388,9 +369,96 @@ class Loader:
             self.loader_motor.set(0)
 
 
+# low-level components
+# azimuth, elevation, flywheel, intake, loader
+
+# azimuth, elevation = targeting
+# flywheel, intake, loader = shooting/firing
+
+
+class Targeting:
+    azimuth: Azimuth
+    elevation: Elevation
+    gyro: FROGGyro
+    vision: FROGVision
+    lidar: FROGdar
+
+    def __init__(self):
+        self.automatic = False
+
+    def enable(self):
+        self.automatic = True
+        self.azimuth.enable()
+        self.elevation.enable()
+
+    def disable(self):
+        self.automatic = False
+        self.azimuth.disable()
+        self.elevation.disable()
+
+    def calcElevation(self):
+        # get lidar distance in inches and calculate
+        # position for elevation
+        if (inches := self.lidar.getDistance()) :
+            return 25199 * inches ** -0.476
+        else:
+            return None
+
+    # move azimuth
+    def moveToTarget(self):
+        # check if the robot is pointed the right direction
+        if -90 <= self.gyro.getHeading() <= 90:
+            # if we get a value for x_error, we see the target
+            # if we already see the target, turn towards it.
+            # positive x_error = target to the right of center
+            if (x_error := self.vision.getPowerPortErrorX()) :
+                # if we are within tolerance, don't move
+                if abs(x_error) > AZIMUTH_TARGET_PIXEL_TOLERANCE:
+                    if x_error > 0:
+                        # turn to right
+                        self.azimuth.setVelocity(
+                            remap(x_error, 0, CAM_RES_H / 2, 0.08, 1)
+                        )
+                    else:
+                        # turn to left
+                        self.azimuth.setVelocity(
+                            remap(x_error, -CAM_RES_H / 2, 0, -1, -0.08)
+                        )
+                else:
+                    self.azimuth.setVelocity(0)
+            # We don't see the target, so move turret
+            # in direction of the target
+            else:
+                # move the turret to point back downfield in the
+                # direction of the target
+                self.setPosition(self.gyro.getHeading() * -AZIMUTH_COUNTS_PER_DEGREE)
+        # we are not pointed a direction that will allow
+        # us to rotate toward the target.
+        # center the turret until we can move it to the target
+        else:
+            self.azimuth.setPosition(AZIMUTH_CENTER)
+
+    # move elevation
+    def moveToRange(self):
+        if (new_position := self.calcElevation()) :
+            self.elevation.setPosition(new_position)
+        else:
+            self.elevation.stop()
+
+    # get gyro
+
+    # get vision
+
+    # get lidar
+
+    def execute(self):
+        if self.automatic:
+            self.moveToTarget()
+            self.moveToRange()
+
+
 class FROGShooter(StateMachine):
     intake: Intake
-    conveyor: Conveyor
     loader: Loader
     azimuth: Azimuth
     elevation: Elevation
