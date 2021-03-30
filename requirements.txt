@@ -4,6 +4,7 @@ robotpy-installer
 robotpy-ctre
 robotpy-hal
 robotpy-halsim-gui
+robotpy-navx
 robotpy-rev
 robotpy-rev-color
 robotpy-wpiutil
