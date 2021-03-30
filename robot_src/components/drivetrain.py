@@ -6,11 +6,12 @@ from ctre import (
     FeedbackDevice,
     TalonFXInvertType,
 )
-from wpilib.drive import DifferentialDrive
+#from wpilib.drive import DifferentialDrive
 from math import copysign, atan2, sqrt, pi, degrees, radians
 from .common import TalonPID, limit, remap
 from .vision import FROGVision
-from .shooter import Intake, Conveyor
+
+from .shooter import Intake
 from .sensors import FROGGyro
 
 # from navx import AHRS
@@ -55,7 +56,7 @@ MM_ACCELERATION = 10000  # 4000
 MM_CRUISE_VELOCITY = 10000  # 8000
 
 
-class FROGDrive(DifferentialDrive):
+class FROGDrive:
 
     # drive motors (channels defined in robot.py)
     leftMaster: WPI_TalonFX
@@ -66,7 +67,6 @@ class FROGDrive(DifferentialDrive):
     vision: FROGVision
     gyro: FROGGyro
     intake: Intake
-    conveyor: Conveyor
 
     control_mode = ControlMode.Position
     control_mode_str = tunable('None')
@@ -146,6 +146,10 @@ class FROGDrive(DifferentialDrive):
         # called by MagicBot after object construction
         # use to configure objects that only need to be set up once
 
+        # init DifferentialDrive with left and right controllers
+        # super().__init__(self.leftMaster, self.rightMaster)
+        # self.setSafetyEnabled(False)
+
         # configure slaves
         self.leftSlave.follow(self.leftMaster)
         self.rightSlave.follow(self.rightMaster)
@@ -173,10 +177,6 @@ class FROGDrive(DifferentialDrive):
         for motor in [self.leftMaster, self.rightMaster]:
             motor.configMotionAcceleration(MM_ACCELERATION, 0)
             motor.configMotionCruiseVelocity(MM_CRUISE_VELOCITY, 0)
-
-        # init DifferentialDrive with left and right controllers
-        super().__init__(self.leftMaster, self.rightMaster)
-        self.setSafetyEnabled(False)
 
         # TODO: might want to move these to a chassis component that
         # has the drivetrain, gyro, and vision as objects.
@@ -287,16 +287,16 @@ class FROGDrive(DifferentialDrive):
             # we need to kick on the intake
             if pc_y < 60:
                 self.intake.enable()
-                self.conveyor.enable()
+                #self.conveyor.enable()
             else:
                 self.intake.disable()
-                self.conveyor.disable()
+                #self.conveyor.disable()
             rotate = remap(pc_x, -160, 160, -0.5, 0.5)
             speed = remap(pc_y, 0, 240, 0.3, 0.8)
             self.set_velocity(speed, rotate)
         else:
             self.intake.disable()
-            self.conveyor.disable()
+            #self.conveyor.disable()
 
     def driveToHeading(self, x, y):
         # x should be right positive
