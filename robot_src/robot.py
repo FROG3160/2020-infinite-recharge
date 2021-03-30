@@ -2,24 +2,24 @@
 
 import magicbot
 import wpilib
-from ctre import WPI_TalonFX, WPI_TalonSRX, CANifier
-from .components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
-from .components.driverstation import FROGXboxDriver, FROGXboxGunner
-from .components.shooter import (
+from ctre import WPI_TalonFX, WPI_TalonSRX, CANifier, WPI_VictorSPX
+from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
+from components.driverstation import FROGXboxDriver, FROGXboxGunner
+from components.shooter import (
     FROGShooter,
     Azimuth,
     Elevation,
     Flywheel,
     Loader,
     # Conveyor,
-    # Intake,
+    Intake,
 )
 
 # from components.lift import Lift
-from .components.sensors import FROGdar, FROGGyro, LimitSwitch
-from .components.led import FROGLED
-from .components.vision import FROGVision
-from .components.common import Buffer
+from components.sensors import FROGdar, FROGGyro, LimitSwitch
+from components.led import FROGLED
+from components.vision import FROGVision
+from components.common import Buffer
 
 LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
@@ -45,7 +45,7 @@ class FROGbot(magicbot.MagicRobot):
     flywheel: Flywheel
     loader: Loader
     # conveyor: Conveyor
-    # intake: Intake
+    intake: Intake
     # lift: Lift
     vision: FROGVision
 
@@ -57,7 +57,7 @@ class FROGbot(magicbot.MagicRobot):
         self.leftSlave = WPI_TalonFX(13)
         self.rightSlave = WPI_TalonFX(14)
 
-        # self.intake_motor = WPI_VictorSPX(21)
+        self.intake_motor = WPI_VictorSPX(21)
         # self.conveyor_motor = WPI_VictorSPX(22)
         self.loader_motor = WPI_TalonFX(23)
 
@@ -67,8 +67,8 @@ class FROGbot(magicbot.MagicRobot):
 
         # self.controlwheel_motor = WPI_TalonSRX(41)
 
-        self.liftLeft = WPI_TalonSRX(51)
-        self.liftRight = WPI_TalonSRX(52)
+        # self.liftLeft = WPI_TalonSRX(51)
+        # self.liftRight = WPI_TalonSRX(52)
 
         self.front_limit = LimitSwitch(0)
         self.rear_limit = LimitSwitch(1)
@@ -111,7 +111,7 @@ class FROGbot(magicbot.MagicRobot):
             self.conveyor.enable()
         else:
             self.intake.disable()
-            self.conveyor.disable()
+            # self.conveyor.disable()
 
         if self.chassis.control_mode == POSITION_MODE:
             pov = self.drive_stick.get_debounced_POV()
@@ -186,7 +186,7 @@ class FROGbot(magicbot.MagicRobot):
                 self.loader.override = False
                 self.loader.disable()
                 self.intake.disable()
-                self.conveyor.disable()
+                # self.conveyor.disable()
                 self.flywheel.disable()
 
             if self.gunner_stick.getAButtonPressed():
