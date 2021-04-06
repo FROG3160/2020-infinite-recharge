@@ -42,7 +42,7 @@ class FROGVision:
         self.powerport_table = NetworkTables.getTable(POWERPORT_TABLE)
         self.powercell_table = NetworkTables.getTable(POWERCELL_TABLE)
         self.targeting_control = NetworkTables.getTable(CONTROL_TABLE)
-        self.powerport_error_x = Buffer(12)
+        self.powerport_error_x = Buffer(6)
         self.powercell_error_x = Buffer(12)
         self.powercell_error_y = Buffer(12)
 

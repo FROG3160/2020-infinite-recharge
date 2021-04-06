@@ -15,5 +15,6 @@ class DriveForward(AutonomousStateMachine):
 
     @timed_state(duration=1, first=True)
     def drive_backward(self):
-        self.chassis.init_position_mode()
-        self.chassis.set_position(36)
+        #self.chassis.init_position_mode()
+        #self.chassis.set_position(36)
+        pass

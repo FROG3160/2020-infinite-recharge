@@ -49,18 +49,18 @@ class FROGdar:
             and self.targetRange is not None
         )
 
-    @feedback(key='raw')
+    @feedback(key='sensor_raw')
     def getSensorData(self):
         errorcode, (val1, val2) = self.pwm_sensor.getPWMInput(
             CANifier.PWMChannel.PWMChannel0
         )
         return val1
 
-    @feedback(key='buffered')
+    @feedback(key='sensor_buffered')
     def getBufferedSensorData(self):
         return self.targetRange
 
-    @feedback(key="distance")
+    @feedback(key="range_inches")
     def getDistance(self):
         if self.isValidData():
             return self.getBufferedSensorData() * SENSORUNITS_IN_INCHES
@@ -74,7 +74,7 @@ class FROGdar:
             else:
                 self.targetRange = None
         else:
-            self.rangeBuffer.clear() 
+            self.rangeBuffer.clear()
             self.targetRange = None
 
 

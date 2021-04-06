@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import magicbot
+from magicbot import feedback
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX, CANifier, WPI_VictorSPX
 from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
@@ -11,8 +12,9 @@ from components.shooter import (
     Elevation,
     Flywheel,
     Loader,
-    # Conveyor,
+    Turret,
     Intake,
+    Feed
 )
 
 # from components.lift import Lift
@@ -25,8 +27,8 @@ LEFTHAND = wpilib.XboxController.Hand.kLeftHand
 RIGHTHAND = wpilib.XboxController.Hand.kRightHand
 
 # controller modes
-NORMAL = 0
-MANUAL = 1
+NORMAL = 1
+MANUAL = 0
 
 
 class FROGbot(magicbot.MagicRobot):
@@ -36,18 +38,18 @@ class FROGbot(magicbot.MagicRobot):
 
     lidar: FROGdar
     gyro: FROGGyro
-
-    chassis: FROGDrive
-    # shooter: FROGShooter
+    chassis: FROGDrive  #controls drivetrain
+    shooter: FROGShooter  #controls flywheel and feed
+    loader: Loader # controls intake
+    vision: FROGVision
+    turret: Turret
 
     azimuth: Azimuth
     elevation: Elevation
     flywheel: Flywheel
-    loader: Loader
-    # conveyor: Conveyor
+    feed: Feed
     intake: Intake
-    # lift: Lift
-    vision: FROGVision
+
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -59,7 +61,7 @@ class FROGbot(magicbot.MagicRobot):
 
         self.intake_motor = WPI_VictorSPX(21)
         # self.conveyor_motor = WPI_VictorSPX(22)
-        self.loader_motor = WPI_TalonFX(23)
+        self.feed_motor = WPI_TalonFX(23)
 
         self.azimuth_motor = WPI_TalonSRX(31)
         self.elevation_motor = WPI_TalonSRX(32)
@@ -85,7 +87,7 @@ class FROGbot(magicbot.MagicRobot):
         self.led = FROGLED(0, 144)
 
         self.driverMode = NORMAL
-        self.gunnerMode = MANUAL
+        self.gunnerMode = NORMAL
         self.loopcount = 0
 
     def getDriverInputs(self):
@@ -96,70 +98,80 @@ class FROGbot(magicbot.MagicRobot):
                Right Trigger: Forward
                Left Trigger: Reverse
                Left Stick: Rotate
+               Left Stick push: reset gyro
                """
         # allow the driver to zero the gyro
         if self.drive_stick.getStickButtonPressed(LEFTHAND):
             self.gyro.resetGyro()
 
-        # Right Bumper changes between position control with d-pad (POV)
-        # and driving the robot with the joystick/trigger
-        # if self.drive_stick.getBumperPressed(RIGHTHAND):
-        # self.chassis.toggle_control_mode()
-
         if self.drive_stick.getBumper(LEFTHAND):
-            self.intake.enable()
-            self.conveyor.enable()
+            self.loader.manual_enable()
         else:
-            self.intake.disable()
-            # self.conveyor.disable()
+            self.loader.manual_disable()
 
-        if self.chassis.control_mode == POSITION_MODE:
-            pov = self.drive_stick.get_debounced_POV()
-            if pov == 0:
-                self.chassis.set_position(36)  # tell it to roll forward 36 inches
-            elif pov == 180:
-                self.chassis.set_position(-36)  # tell it to roll backward 36 inches
-            elif pov == 90:
-                self.chassis.set_rotate(45)
-            elif pov == 270:
-                self.chassis.set_rotate(-45)
+        if self.drive_stick.getBumper(RIGHTHAND):
+            pc_x = self.vision.getPowerCellErrorX()
+            pc_y = self.vision.getPowerCellErrorY()
+            if pc_x and pc_y:
+                if pc_y < 60:
+                    self.loader.auto_enable()
+                else:
+                    self.loader.auto_disable()
+                self.chassis.driveToTarget(pc_x, pc_y)
         else:
-            if self.drive_stick.getBumper(RIGHTHAND):
-                self.chassis.driveToTarget()
-            else:
-                self.chassis.set_velocity(
-                    self.drive_stick.get_speed(), self.drive_stick.get_rotation()
-                )
-            # self.lift.set_speed(self.drive_stick.getY(RIGHTHAND))
-            # self.lift.enable()
+            self.loader.auto_disable()
+            self.chassis.set_velocity(
+                self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+            )
+
+    @feedback(key='GunnerMode')
+    def getGunnerMode(self):
+        return self.gunnerMode == NORMAL
 
     def getGunnerInputs(self):
+        # normal mode:
+        #   right trigger = fire
+        #   start button = switch to manual mode
+        #   right stick push = reset Elevation encoder
+        #
+        # manual mode:
+        #   back button = switch to normal mode
+        #   d-pad up = increase flywheel velocity
+        #   d-pad down = decrease flywheel velocity
+        #   right bumper = run intake manually
+        #   right trigger = fire
+        #   left stick push = reset azimuth encoder
 
         if self.gunnerMode == NORMAL:
-            # run the shooter state machine
-
             # the small button on the right
-            if self.gunner_stick.getStartButton():
+            if self.gunner_stick.getStartButtonPressed():
                 self.gunnerMode = MANUAL
-                self.intake.disable()
-                self.conveyor.disable()
-                self.loader.disable()
-                self.flywheel.disable()
-                self.azimuth.setManual()
-                self.elevation.setManual()
+                self.turret.disable()
+                self.elevation.enable()
+                self.azimuth.enable()
 
-            if self.gunner_stick.getTriggerAxis(RIGHTHAND) == 1:
-                pass
+            if self.gunner_stick.getTriggerAxis(LEFTHAND) > 0.25:
+                self.shooter.enable()
+                if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
+                    self.shooter.fire()
+                else:
+                    self.shooter.ceaseFire()
+            else:
+                self.shooter.disable()
 
             if self.gunner_stick.getBumper(RIGHTHAND) == 1:
                 pass
 
+            if self.gunner_stick.getStickButtonPressed(RIGHTHAND):
+                self.elevation.resetEncoder()
+
         elif self.gunnerMode == MANUAL:
             # the small button on the left
-            if self.gunner_stick.getBackButton():
+            if self.gunner_stick.getBackButtonPressed():
                 self.gunnerMode = NORMAL
-                self.azimuth.setAutomatic()
-                self.elevation.setAutomatic()
+                self.azimuth.disable()
+                self.elevation.disable()
+                self.turret.enable()
 
             if self.gunner_stick.get_debounced_POV() == 0:
                 self.flywheel.incrementSpeed()
@@ -167,49 +179,39 @@ class FROGbot(magicbot.MagicRobot):
             elif self.gunner_stick.get_debounced_POV() == 180:
                 self.flywheel.decrementSpeed()
 
-            # runs the belts using the bumpers
+            # runs the intake/loader manually
             if self.gunner_stick.getBumper(RIGHTHAND):
-                self.loader.override = True
-                self.loader.enable()
-                # self.conveyor.enable()
-
-            # if self.gunner_stick.getBumper(LEFTHAND):
-            #    self.intake.enable()
+                self.loader.manual_enable()
+            else:
+                self.loader.manual_disable()
 
             if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
-                # self.loader.override = True
-                # self.loader.enable()
-                # self.intake.enable()
-                # self.conveyor.enable()
-                self.flywheel.enable()
+                self.shooter.enable()
             else:
-                self.loader.override = False
-                self.loader.disable()
-                self.intake.disable()
-                # self.conveyor.disable()
-                self.flywheel.disable()
+                self.shooter.disable()
 
-            if self.gunner_stick.getAButtonPressed():
-                self.flywheel.toggleVelocityMode()
-            if self.gunner_stick.getXButtonPressed():
-                self.flywheel.enable()
+            # if self.gunner_stick.getAButtonPressed():
+            #    self.flywheel.toggleVelocityMode()
+            # if self.gunner_stick.getXButtonPressed():
+            #    self.flywheel.enable()
 
-            if self.gunner_stick.getBButtonPressed():
-                self.flywheel.disable()
+            # if self.gunner_stick.getBButtonPressed():
+            #    self.flywheel.disable()
 
             if self.gunner_stick.getStickButtonPressed(LEFTHAND):
                 self.azimuth.resetEncoder()
 
-            # self.azimuth.setSpeed(self.gunner_stick.get_rotation())
-            # self.azimuth.enable()
-            # self.elevation.set_speed(self.gunner_stick.get_elevation())
-            # self.elevation.enable()
+            self.azimuth.setSpeed(self.gunner_stick.get_rotation())
+
+            self.elevation.setSpeed(self.gunner_stick.get_elevation())
+
 
     def teleopInit(self):
         """Called when teleop starts; optional"""
         self.chassis.reset_encoders()
         self.chassis.init_velocity_mode()
         self.lidar.enable()
+        self.turret.set_automatic()
 
     def teleopPeriodic(self):
         """Called on each iteration of the control loop"""
@@ -222,7 +224,6 @@ class FROGbot(magicbot.MagicRobot):
     def testInit(self):
 
         self.chassis.reset_encoders()
-        self.chassis.init_position_mode()
         self.ledFunc = Buffer(3)
         self.ledFunc.appendList([self.led.setRed, self.led.setBlue, self.led.setGreen])
         self.dioTest = LimitSwitch(0)
