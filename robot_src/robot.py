@@ -121,7 +121,7 @@ class FROGbot(magicbot.MagicRobot):
         else:
             self.loader.auto_disable()
             self.chassis.set_velocity(
-                self.drive_stick.get_speed(), self.drive_stick.get_rotation()
+                self.drive_stick.getSpeed(), self.drive_stick.getTwist()
             )
 
     @feedback(key="GunnerMode")
