@@ -1,0 +1,83 @@
+Magicbot Notes:
+
+Brian Jarrett
+@celttechie
+Mar 15 20:48
+Now that you've switched to pybind, I'm finding that code inspection/source assistant capabilities are more cryptic. Here's an example:
+source_assistant.png
+Is there anything that can be done about it? Sometimes it'll show that I need a few arguments, but has no specifics whatsoever.
+This is from WingIDE, btw.
+Dustin Spicuzza
+@virtuald
+Mar 15 20:49
+hiya
+so type stubs are the answer
+filed an issue about it: robotpy/robotpy-build#1
+I think @auscompgeek and @TheTripleV had started down that path, but I'm not sure where it ended up
+Brian Jarrett
+@celttechie
+Mar 15 20:51
+OK. It'
+Dustin Spicuzza
+@virtuald
+Mar 15 20:51
+FWIW, vscode isn't too terrible with the bindings, but there are quirks it also can't figure out
+Brian Jarrett
+@celttechie
+Mar 15 20:52
+I'll check vscode... I do know it seemed to have different levels of success. FWIW, once I create a talon object, I get more information on it's methods
+It's usually only a problem when I'm trying to figure out a new class I haven't used before. :)
+Dustin Spicuzza
+@virtuald
+Mar 15 21:00
+there's probably some deep magic that can be done at the pybind11 level to fix this
+but I haven't really looked
+I've been meaning to work on RobotPy stuff all weekend, but honestly the virus stuff has been preoccupying me
+Brian Jarrett
+@celttechie
+Mar 15 21:07
+We were supposed to compete this last weekend, so things got canceled and everyone needed a break. We'll be meeting again tomorrow. We still have things we'd like to do, and I have more I'd like to add to my knowledge base, so we'll keep working at it at a slower pace.
+Here's a not-so-technical question: We are using magicbot, but I'm having trouble determining what should go in a state machine, or higher-level component, and what should go in a lower-level component. For instance, I have a conveyor that needs to run when either the driver is intaking balls from the floor, or the gunner is needing to shoot, so I have conflicts with their controllers enabling and disabling the conveyor component. How should someone set up the components in that scenario? It seems that I don't really need a state machine for that.
+Dustin Spicuzza
+@virtuald
+Mar 15 21:12
+yeah, this is a common thing
+Brian Jarrett
+@celttechie
+Mar 15 21:12
+I can, and have done similar by just adding if statements in the execute method, but that seems ..... rough.
+Dustin Spicuzza
+@virtuald
+Mar 15 21:13
+the way I prefer to do it is by managing all of the interactions with a component through a single component
+and then set it up so that 'last command wins' for each loop iteration
+so in that case I would have a single 'shooter manager' that interacts with the conveyor, shooter, and intake
+and set it up so that in its execute method, it tells those things what to do
+as long as it's executed first (eg, occurs first in the MagicRobot class), then this works
+you can imagine the shooter manager has separate functions like 'shoot' or 'intake' , which correctly activate the conveyor/shooter/intake components
+Brian Jarrett
+@celttechie
+Mar 15 21:15
+ok.. right.. I do have it set up so higher level components are declared first.
+so then would you have the shooter manager reading joystick buttons, or read the joystick buttons during the teleop loop and calling methods of the shooter manager and would it make a difference?
+Dustin Spicuzza
+@virtuald
+Mar 15 21:17
+the latter
+components should never read joystick buttons imho
+otherwise they're useless in autonomous
+Brian Jarrett
+@celttechie
+Mar 15 21:18
+ahhh... good point
+I do have components reading gyro angles and LIDAR, but those are available at all times.
+Dustin Spicuzza
+@virtuald
+Mar 15 21:18
+right
+there's a difference between sensors and user command interfaces
+Brian Jarrett
+@celttechie
+Mar 15 21:20
+I haven't even worked on autonomous yet, so you just helped me avoid a pitfall there.
+Thanks again, you are always informative and helpful.

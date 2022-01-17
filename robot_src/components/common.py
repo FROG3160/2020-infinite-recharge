@@ -1,4 +1,3 @@
-from wpilib import AddressableLED
 from collections import deque
 
 
@@ -63,9 +62,9 @@ class TalonPID:
         motor_control.config_IntegralZone(self.slot, self.iZone, 0)
 
 
-def remap(val, OldMin, OldMax, NewMin, NewMax):
+def remap(val, oldMin, oldMax, newMin, newMax) -> float:
     '''take a value in the old range and return a value in the new range'''
-    return (((val - OldMin) * (NewMax - NewMin)) / (OldMax - OldMin)) + NewMin
+    return (((val - oldMin) * (newMax - newMin)) / (oldMax - oldMin)) + newMin
 
 
 def limit(val, min_val, max_val):
@@ -74,8 +73,9 @@ def limit(val, min_val, max_val):
 
 
 if __name__ == '__main__':
-    print(remap(0, 1, 0, 9000, 0.5) == 4500)
-    print(remap(0, 1, 0, 9000, -0.3))
+    print(remap(0.5, 0, 1, 0, 9000) == 4500)
+    print(remap(-1, -5, 5, 0, 10000,))
+    print(remap(.5, -1, 1, 0, 100))
     print(limit(2, -1, 1))
     print(limit(-123, 0, 900))
     print(limit(45, 0, 100))
