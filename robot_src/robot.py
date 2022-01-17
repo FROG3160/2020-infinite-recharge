@@ -4,8 +4,8 @@ import magicbot
 from magicbot import feedback
 import wpilib
 from ctre import WPI_TalonFX, WPI_TalonSRX, CANifier, WPI_VictorSPX
-from components.drivetrain import FROGDrive, POSITION_MODE, VELOCITY_MODE
-from components.driverstation import FROGXboxDriver, FROGXboxGunner
+from components.drivetrain import FROGDrive
+from components.driverstation import FROGXboxGunner, FROGStickBase
 from components.shooter import (
     FROGShooter,
     Azimuth,
@@ -14,7 +14,7 @@ from components.shooter import (
     Loader,
     Turret,
     Intake,
-    Feed
+    Feed,
 )
 
 # from components.lift import Lift
@@ -33,14 +33,14 @@ MANUAL = 0
 
 class FROGbot(magicbot.MagicRobot):
     """
-        Initialize components here.
+    Initialize components here.
     """
 
     lidar: FROGdar
     gyro: FROGGyro
-    chassis: FROGDrive  #controls drivetrain
-    shooter: FROGShooter  #controls flywheel and feed
-    loader: Loader # controls intake
+    chassis: FROGDrive  # controls drivetrain
+    shooter: FROGShooter  # controls flywheel and feed
+    loader: Loader  # controls intake
     vision: FROGVision
     turret: Turret
 
@@ -49,7 +49,6 @@ class FROGbot(magicbot.MagicRobot):
     flywheel: Flywheel
     feed: Feed
     intake: Intake
-
 
     def createObjects(self):
         """Create motors and inputs"""
@@ -76,7 +75,8 @@ class FROGbot(magicbot.MagicRobot):
         self.rear_limit = LimitSwitch(1)
 
         # controls
-        self.drive_stick = FROGXboxDriver(0)
+        # self.drive_stick = FROGXboxDriver(0)
+        self.drive_stick = FROGStickBase(0)
         self.gunner_stick = FROGXboxGunner(1)
 
         # used for LIDAR
@@ -92,24 +92,24 @@ class FROGbot(magicbot.MagicRobot):
 
     def getDriverInputs(self):
         """Driver Controls:
-           Normal:
-               Left Bumper: Intake
-               Right Bumber: Drive to Target
-               Right Trigger: Forward
-               Left Trigger: Reverse
-               Left Stick: Rotate
-               Left Stick push: reset gyro
-               """
+        Normal:
+            Left Bumper: Intake
+            Right Bumber: Drive to Target
+            Right Trigger: Forward
+            Left Trigger: Reverse
+            Left Stick: Rotate
+            Left Stick push: reset gyro
+        """
         # allow the driver to zero the gyro
-        if self.drive_stick.getStickButtonPressed(LEFTHAND):
+        if self.drive_stick.getButtonDebounced(4):
             self.gyro.resetGyro()
 
-        if self.drive_stick.getBumper(LEFTHAND):
+        if self.drive_stick.getButtonDebounced(3):
             self.loader.manual_enable()
         else:
             self.loader.manual_disable()
 
-        if self.drive_stick.getBumper(RIGHTHAND):
+        if self.drive_stick.getButton(2):
             pc_x = self.vision.getPowerCellErrorX()
             pc_y = self.vision.getPowerCellErrorY()
             if pc_x and pc_y:
@@ -124,7 +124,7 @@ class FROGbot(magicbot.MagicRobot):
                 self.drive_stick.get_speed(), self.drive_stick.get_rotation()
             )
 
-    @feedback(key='GunnerMode')
+    @feedback(key="GunnerMode")
     def getGunnerMode(self):
         return self.gunnerMode == NORMAL
 
@@ -205,7 +205,6 @@ class FROGbot(magicbot.MagicRobot):
 
             self.elevation.setSpeed(self.gunner_stick.get_elevation())
 
-
     def teleopInit(self):
         """Called when teleop starts; optional"""
         self.chassis.reset_encoders()
@@ -225,7 +224,11 @@ class FROGbot(magicbot.MagicRobot):
 
         self.chassis.reset_encoders()
         self.ledFunc = Buffer(3)
-        self.ledFunc.appendList([self.led.setRed, self.led.setBlue, self.led.setGreen])
+        self.ledFunc.appendList(
+            [self.led.setRed,
+             self.led.setBlue,
+             self.led.setGreen]
+        )
         self.dioTest = LimitSwitch(0)
 
     def testPeriodic(self):
