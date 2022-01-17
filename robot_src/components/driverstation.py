@@ -4,6 +4,7 @@ from wpilib.interfaces import GenericHID
 from .common import remap
 from networktables import NetworkTables
 from magicbot import feedback
+from wpilib import SmartDashboard
 
 
 LEFTHAND = XboxController.Hand.kLeftHand
@@ -12,16 +13,10 @@ RIGHTHAND = XboxController.Hand.kRightHand
 LEFT_RUMBLE = GenericHID.RumbleType.kLeftRumble
 RIGHT_RUMBLE = GenericHID.RumbleType.kRightRumble
 
+SD = SmartDashboard()
+
 
 class FROGStickBase(Joystick):
-
-    DEADBAND = 0.15
-    SPEED_DIVISOR = 1
-    ROTATION_DIVISOR = 1.6
-    ROTATION_MIN = 0
-    ROTATION_MAX = 0.5
-    DEBOUNCE_PERIOD = 0.5
-
     def __init__(self, port, name='FROGStick'):
         super().__init__(port)
         self.name = name
@@ -35,6 +30,7 @@ class FROGStickBase(Joystick):
 
         self.button_latest = {}
         self.timer = wpilib.Timer
+        self.updateTunables()
         # TODO: see if the network tables is needed
         # I think all objects are already place on NT
         # self.nt = NetworkTables.getTable("{}_values".format(self.name))
@@ -56,7 +52,7 @@ class FROGStickBase(Joystick):
         return speed
 
     @feedback
-    def get_rotation(self):
+    def getRotation(self):
         return (
             self.getTwist() / self.ROTATION_DIVISOR
             if abs(self.getTwist()) > self.DEADBAND
@@ -79,6 +75,12 @@ class FROGStickBase(Joystick):
                 val = True
         # self.update_NT('button_{}'.format(num), val)
         return val
+
+    def updateTunables(self):
+        self.DEADBAND = SD.getNumber('driver_DEADBAND')
+        self.SPEED_DIVISOR = SD.getNumber('driver_SPEED_DIVISOR')
+        self.ROTATION_DIVISOR = SD.getNumber('driver_ROTATION_DIVISOR')
+        self.DEBOUNCE_PERIOD = SD.getNumber('driver_DEBOUNCE_PERIOD')
 
 
 class driveFROGStick(FROGStickBase):
