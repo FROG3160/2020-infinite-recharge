@@ -3,7 +3,7 @@
 import magicbot
 from magicbot import feedback
 import wpilib
-from wpilib import SmartDashboard
+from wpilib import SmartDashboard as SD
 from ctre import WPI_TalonFX, WPI_TalonSRX, CANifier, WPI_VictorSPX
 from components.drivetrain import FROGDrive
 from components.driverstation import FROGXboxGunner, FROGStickBase
@@ -31,8 +31,6 @@ RIGHTHAND = wpilib.XboxController.Hand.kRightHand
 NORMAL = 1
 MANUAL = 0
 
-SD = SmartDashboard()
-
 
 class FROGbot(magicbot.MagicRobot):
     """
@@ -56,11 +54,11 @@ class FROGbot(magicbot.MagicRobot):
     def createObjects(self):
         """Create motors and inputs"""
         # add smartdashboard values
-        SD.putNumber('driver_DEADBAND', 0.15)
+        SD.putNumber('driver_DEADBAND', 0
+        15)
         SD.putNumber('driver_SPEED_DIVISOR', 1)
         SD.putNumber('driver_ROTATION_DIVISOR', 1.6)
         SD.putNumber('driver_DEBOUNCE_PERIOD', 0.5)
-
         # chassis components
         self.leftMaster = WPI_TalonFX(11)
         self.rightMaster = WPI_TalonFX(12)
@@ -119,8 +117,6 @@ class FROGbot(magicbot.MagicRobot):
             self.loader.manual_disable()
 
         # read the values off of SmartDashboard
-        if self.drive_stick.getButtonDebounced(2):
-            self.drive_stick.updateTunables()
 
         if self.drive_stick.getButton(1):
             pc_x = self.vision.getPowerCellErrorX()

@@ -1,10 +1,11 @@
 import wpilib
 from wpilib import Joystick, XboxController
 from wpilib.interfaces import GenericHID
+from wpilib import SmartDashboard as SD
 from .common import remap
 from networktables import NetworkTables
-from magicbot import feedback
-from wpilib import SmartDashboard
+from magicbot import feedback, tunable
+#from wpilib import SmartDashboard as SD
 
 
 LEFTHAND = XboxController.Hand.kLeftHand
@@ -13,10 +14,9 @@ RIGHTHAND = XboxController.Hand.kRightHand
 LEFT_RUMBLE = GenericHID.RumbleType.kLeftRumble
 RIGHT_RUMBLE = GenericHID.RumbleType.kRightRumble
 
-SD = SmartDashboard()
-
 
 class FROGStickBase(Joystick):
+
     def __init__(self, port, name='FROGStick'):
         super().__init__(port)
         self.name = name
@@ -34,6 +34,7 @@ class FROGStickBase(Joystick):
         # TODO: see if the network tables is needed
         # I think all objects are already place on NT
         # self.nt = NetworkTables.getTable("{}_values".format(self.name))
+
 
     # def update_NT(self, control, value):
     #     self.nt.putNumber(control, value)
@@ -77,10 +78,10 @@ class FROGStickBase(Joystick):
         return val
 
     def updateTunables(self):
-        self.DEADBAND = SD.getNumber('driver_DEADBAND')
-        self.SPEED_DIVISOR = SD.getNumber('driver_SPEED_DIVISOR')
-        self.ROTATION_DIVISOR = SD.getNumber('driver_ROTATION_DIVISOR')
-        self.DEBOUNCE_PERIOD = SD.getNumber('driver_DEBOUNCE_PERIOD')
+        self.DEADBAND = SD.getNumber('driver_DEADBAND', 0)
+        self.SPEED_DIVISOR = SD.getNumber('driver_SPEED_DIVISOR', 1)
+        self.ROTATION_DIVISOR = SD.getNumber('driver_ROTATION_DIVISOR', 1)
+        self.DEBOUNCE_PERIOD = SD.getNumber('driver_DEBOUNCE_PERIOD', 0)
 
 
 class driveFROGStick(FROGStickBase):
