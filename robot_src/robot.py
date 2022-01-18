@@ -54,8 +54,7 @@ class FROGbot(magicbot.MagicRobot):
     def createObjects(self):
         """Create motors and inputs"""
         # add smartdashboard values
-        SD.putNumber('driver_DEADBAND', 0
-        15)
+        SD.putNumber('driver_DEADBAND', 0.15)
         SD.putNumber('driver_SPEED_DIVISOR', 1)
         SD.putNumber('driver_ROTATION_DIVISOR', 1.6)
         SD.putNumber('driver_DEBOUNCE_PERIOD', 0.5)
