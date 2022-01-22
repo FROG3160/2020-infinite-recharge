@@ -93,7 +93,7 @@ class FROGbot(magicbot.MagicRobot):
         self.led = FROGLED(0, 144)
 
         self.driverMode = NORMAL
-        self.gunnerMode = NORMAL
+        self.gunnerMode = MANUAL
         self.loopcount = 0
 
     def getDriverInputs(self):
@@ -158,14 +158,7 @@ class FROGbot(magicbot.MagicRobot):
                 self.elevation.enable()
                 self.azimuth.enable()
 
-            if self.gunner_stick.getTriggerAxis(LEFTHAND) > 0.25:
-                self.shooter.enable()
-                if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
-                    self.shooter.fire()
-                else:
-                    self.shooter.ceaseFire()
-            else:
-                self.shooter.disable()
+
 
             if self.gunner_stick.getBumper(RIGHTHAND) == 1:
                 pass
@@ -193,11 +186,6 @@ class FROGbot(magicbot.MagicRobot):
             else:
                 self.loader.manual_disable()
 
-            if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
-                self.shooter.enable()
-            else:
-                self.shooter.disable()
-
             # if self.gunner_stick.getAButtonPressed():
             #    self.flywheel.toggleVelocityMode()
             # if self.gunner_stick.getXButtonPressed():
@@ -212,6 +200,15 @@ class FROGbot(magicbot.MagicRobot):
             self.azimuth.setSpeed(self.gunner_stick.get_rotation())
 
             self.elevation.setSpeed(self.gunner_stick.get_elevation())
+
+        if self.gunner_stick.getTriggerAxis(LEFTHAND) > 0.25:
+            self.shooter.enable()
+            if self.gunner_stick.getTriggerAxis(RIGHTHAND) > 0.25:
+                self.shooter.fire()
+            else:
+                self.shooter.ceaseFire()
+        else:
+            self.shooter.disable()
 
     def teleopInit(self):
         """Called when teleop starts; optional"""

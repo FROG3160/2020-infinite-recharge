@@ -32,15 +32,15 @@ FALCON_CPR = 2048
 
 
 FLYWHEEL_MODE = ControlMode.Velocity
-FLYWHEEL_MAX_VEL = 25000  # Falcons are maxing at 20k - 21k
+FLYWHEEL_MAX_VEL = 12000  # Falcons are maxing at 20k - 21k
 FLYWHEEL_MAX_ACCEL = (
     FLYWHEEL_MAX_VEL / 50
 )  # sampled 50 times a second makes this MAX ACCEL/sec
 FLYWHEEL_MAX_DECEL = -FLYWHEEL_MAX_ACCEL
-FLYWHEEL_INCREMENT = 500  # increment for manually adjusting speed
-FLYWHEEL_VELOCITY_PORTAL = 14000
-FLYWHEEL_VELOCITY_LOB = 7000
-FLYWHEEL_VELOCITY_TOLERANCE = 2000
+FLYWHEEL_INCREMENT = 200  # increment for manually adjusting speed
+FLYWHEEL_VELOCITY_PORTAL = 6000
+FLYWHEEL_VELOCITY_LOB = 6000
+FLYWHEEL_VELOCITY_TOLERANCE = 500
 FLYWHEEL_LOOP_RAMP = 0.5
 
 # TODO: change over to Position Mode, or MM?
@@ -241,13 +241,13 @@ class Flywheel:
         # defines the two velocities we'll use for our FeedbackDevice
         self._velocityModes = ["PORTAL", "LOB"]
         # the initial velocity we'll use.
-        self._velocityMode = "PORTAL"
+        self._velocityMode = "LOB"
 
         # sets the values for the two defined velocities
         self._velocities = {}
         self._velocities["LOB"] = FLYWHEEL_VELOCITY_LOB
         self._velocities["PORTAL"] = FLYWHEEL_VELOCITY_PORTAL
-        self._velocity = self._velocities["PORTAL"]
+        self._velocity = self._velocities[self._velocityMode]
 
     def disable(self):
         self.enabled = False
@@ -559,7 +559,7 @@ class FROGShooter():
     def execute(self):
         if self.enabled:
             self.flywheel.enable()
-            if self.flywheel.isReady() and self.isFiring() and self.turret.onTarget():
+            if self.flywheel.isReady() and self.isFiring():
                 self.feed.enable()
             else:
                 self.feed.disable()
